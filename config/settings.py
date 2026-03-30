@@ -15,7 +15,7 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-this-in-produc
 DEBUG_RAW = str(config('DEBUG', default='true')).strip().lower()
 DEBUG = DEBUG_RAW in {'1', 'true', 't', 'yes', 'y', 'on', 'debug'}
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = ['*']
 
 # Application definition
 INSTALLED_APPS = [
