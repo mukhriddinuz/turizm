@@ -16,6 +16,7 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(','
 
 # Application definition
 INSTALLED_APPS = [
+    'modeltranslation',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -119,12 +120,13 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Internationalization
 LANGUAGE_CODE = 'uz'
-# LANGUAGES = [
-#     ('uz', 'O\'zbek'),
-#     ('ru', 'Русский'),
-#     ('en', 'English'),
-# ]
-# LOCALE_PATHS = [BASE_DIR / 'locale']
+LANGUAGES = [
+    ('uz', 'O\'zbek'),
+    ('ru', 'Русский'),
+    ('en', 'English'),
+]
+LOCALE_PATHS = [BASE_DIR / 'locale']
+MODELTRANSLATION_DEFAULT_LANGUAGE = 'uz'
 
 TIME_ZONE = 'Asia/Tashkent'
 USE_I18N = True

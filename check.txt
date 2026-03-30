@@ -1,0 +1,13 @@
+SystemCheckError: System check identified some issues:
+
+ERRORS:
+main.RouteGuide.destination: (fields.E304) Reverse accessor 'Destination.route_guides' for 'main.RouteGuide.destination' clashes with reverse accessor for 'main.RouteGuide.destinations'.
+	HINT: Add or change a related_name argument to the definition for 'main.RouteGuide.destination' or 'main.RouteGuide.destinations'.
+main.RouteGuide.destination: (fields.E305) Reverse query name for 'main.RouteGuide.destination' clashes with reverse query name for 'main.RouteGuide.destinations'.
+	HINT: Add or change a related_name argument to the definition for 'main.RouteGuide.destination' or 'main.RouteGuide.destinations'.
+main.RouteGuide.destinations: (fields.E304) Reverse accessor 'Destination.route_guides' for 'main.RouteGuide.destinations' clashes with reverse accessor for 'main.RouteGuide.destination'.
+	HINT: Add or change a related_name argument to the definition for 'main.RouteGuide.destinations' or 'main.RouteGuide.destination'.
+main.RouteGuide.destinations: (fields.E305) Reverse query name for 'main.RouteGuide.destinations' clashes with reverse query name for 'main.RouteGuide.destination'.
+	HINT: Add or change a related_name argument to the definition for 'main.RouteGuide.destinations' or 'main.RouteGuide.destination'.
+
+System check identified 4 issues (0 silenced).
