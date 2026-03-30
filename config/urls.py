@@ -8,12 +8,16 @@ from django.views.static import serve
 from django.http import JsonResponse
 
 import platform
-import psutil
 import django
 from django.http import JsonResponse
 from django.conf import settings
 from django.db import connections
 from django.db.utils import OperationalError
+
+try:
+    import psutil
+except ImportError:  # pragma: no cover - optional dependency fallback
+    psutil = None
 
 from rest_framework import permissions
 from rest_framework_simplejwt.views import (
@@ -44,8 +48,8 @@ def health_check(request):
         'os': platform.system(),
         'os_version': platform.version(),
         'architecture': platform.machine(),
-        'cpu_cores': psutil.cpu_count(logical=True),
-        'memory_total_mb': round(psutil.virtual_memory().total / (1024 * 1024), 2),
+        'cpu_cores': psutil.cpu_count(logical=True) if psutil else None,
+        'memory_total_mb': round(psutil.virtual_memory().total / (1024 * 1024), 2) if psutil else None,
         'python_version': platform.python_version(),
         'django_version': django.get_version(),
     }

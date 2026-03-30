@@ -1,8 +1,32 @@
 from django.urls import path
-from .views import HomeAPIView
+from .views import (
+    DestinationDetailAPIView,
+    DestinationListAPIView,
+    DestinationRoutesAPIView,
+    FAQListAPIView,
+    FilterMetaAPIView,
+    HomeAPIView,
+    MapDestinationAPIView,
+    RegionDetailAPIView,
+    RegionListAPIView,
+    RouteGuideDetailAPIView,
+    RouteGuideListAPIView,
+    SearchSuggestionAPIView,
+)
 
 app_name = 'main'
 
 urlpatterns = [
     path('home/', HomeAPIView.as_view(), name='home'),
+    path('places/', DestinationListAPIView.as_view(), name='place-list'),
+    path('places/<slug:slug>/', DestinationDetailAPIView.as_view(), name='place-detail'),
+    path('places/<slug:slug>/routes/', DestinationRoutesAPIView.as_view(), name='place-routes'),
+    path('routes/', RouteGuideListAPIView.as_view(), name='route-list'),
+    path('routes/<uuid:id>/', RouteGuideDetailAPIView.as_view(), name='route-detail'),
+    path('regions/', RegionListAPIView.as_view(), name='region-list'),
+    path('regions/<slug:slug>/', RegionDetailAPIView.as_view(), name='region-detail'),
+    path('map/places/', MapDestinationAPIView.as_view(), name='map-places'),
+    path('faqs/', FAQListAPIView.as_view(), name='faq-list'),
+    path('search/suggestions/', SearchSuggestionAPIView.as_view(), name='search-suggestions'),
+    path('meta/filters/', FilterMetaAPIView.as_view(), name='meta-filters'),
 ]

@@ -40,8 +40,12 @@ Bu hujjat O'zbekistondagi turistik joylar va ziyoratgohlar haqida ma'lumot berad
 | Joylar ro'yxati                     | `GET /api/v1/places/`                             | Barcha joylar, filter, qidiruv, pagination                           |
 | Ziyoratgohlar sahifasi              | `GET /api/v1/places/?destination_type=pilgrimage` | Faqat ziyoratgohlar ro'yxati                                         |
 | Turistik joylar sahifasi            | `GET /api/v1/places/?destination_type=tourist`    | Faqat turistik joylar ro'yxati                                       |
+| Viloyatlar sahifasi                 | `GET /api/v1/regions/`                            | Viloyatlar ro'yxati va har birida joylar soni                        |
+| Viloyat ichki sahifasi              | `GET /api/v1/regions/{slug}/`                     | Bitta viloyat va unga tegishli joylar                                |
 | Joy detail sahifasi                 | `GET /api/v1/places/{slug}/`                      | To'liq ma'lumot, galereya, yaqin joylar, sharhlar, FAQ               |
 | Joy detail ichidagi yo'nalish bloki | `GET /api/v1/places/{slug}/routes/`               | Mashina, avtobus, poyezd va boshqa yo'nalishlar                      |
+| Sayohat yo'nalishlari               | `GET /api/v1/routes/`                             | Yo'nalishlar ro'yxati (filter, pagination)                           |
+| Sayohat yo'nalishi detail           | `GET /api/v1/routes/{id}/`                        | Bitta yo'nalish haqida to'liq ma'lumot                               |
 | Xarita sahifasi                     | `GET /api/v1/map/places/`                         | Faqat marker uchun yengil JSON                                       |
 | FAQ sahifasi                        | `GET /api/v1/faqs/`                               | Global yoki bitta joyga tegishli savol-javoblar                      |
 | Search suggest                      | `GET /api/v1/search/suggestions/?q=`              | Header qidiruv uchun tezkor takliflar                                |
@@ -658,8 +662,12 @@ Xarita uchun yengil format. Bu yerda detail dagi barcha field lar qaytmasligi ke
 
 - `HomeAPIView`
 - `DestinationListAPIView`
+- `RegionListAPIView`
+- `RegionDetailAPIView`
 - `DestinationDetailAPIView`
 - `DestinationRoutesAPIView`
+- `RouteGuideListAPIView`
+- `RouteGuideDetailAPIView`
 - `MapDestinationAPIView`
 - `FAQListAPIView`
 - `SearchSuggestionAPIView`
