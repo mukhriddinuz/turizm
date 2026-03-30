@@ -1,14 +1,14 @@
 ﻿import math
-from copy import deepcopy
-from typing import Any
 
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
+from drf_spectacular.openapi import AutoSchema
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter
 from rest_framework import generics
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.schemas.openapi import AutoSchema
 from rest_framework.views import APIView
 
 from .models import AboutUzbekistan, Destination, DestinationCategory, FAQ, Region, RouteGuide
@@ -54,43 +54,54 @@ ROUTE_SEARCH_FIELDS = (
 
 class SwaggerAutoSchema(AutoSchema):
     """
-    DRF built-in OpenAPI schema uchun qo'shimcha summary/description/params.
+    drf-spectacular schema uchun qo'shimcha summary/description/params.
     """
 
     def __init__(
         self,
         *args,
+        tags: list[str] | None = None,
+        operation_id_base: str | None = None,
         summary: str | None = None,
         description: str | None = None,
-        manual_parameters: list[dict[str, Any]] | None = None,
+        manual_parameters: list[OpenApiParameter] | None = None,
         **kwargs,
     ):
+        self._tags = tags or []
+        self._operation_id_base = operation_id_base
         self._summary = summary
         self._description = description
         self._manual_parameters = manual_parameters or []
         super().__init__(*args, **kwargs)
 
-    def get_operation(self, path, method):
-        operation = super().get_operation(path, method)
+    def get_tags(self):
+        return self._tags or super().get_tags()
 
-        if self._summary:
-            operation["summary"] = self._summary
+    def get_operation_id(self):
+        return self._operation_id_base or super().get_operation_id()
 
-        if self._description:
-            operation["description"] = self._description
+    def get_summary(self):
+        return self._summary or super().get_summary()
 
-        if self._manual_parameters:
-            existing_params = operation.get("parameters", [])
-            existing_keys = {(item.get("name"), item.get("in")) for item in existing_params}
+    def get_description(self):
+        return self._description or super().get_description()
 
-            for param in self._manual_parameters:
-                key = (param.get("name"), param.get("in"))
-                if key not in existing_keys:
-                    existing_params.append(deepcopy(param))
+    def get_override_parameters(self):
+        return [*super().get_override_parameters(), *self._manual_parameters]
 
-            operation["parameters"] = existing_params
 
-        return operation
+def resolve_openapi_type(schema_type: str = "string", schema_format: str | None = None):
+    if schema_format:
+        if schema_format.lower() == "uuid":
+            return OpenApiTypes.UUID
+
+    type_map = {
+        "string": OpenApiTypes.STR,
+        "integer": OpenApiTypes.INT,
+        "number": OpenApiTypes.NUMBER,
+        "boolean": OpenApiTypes.BOOL,
+    }
+    return type_map.get(schema_type.lower(), OpenApiTypes.STR)
 
 
 def query_param(
@@ -100,31 +111,24 @@ def query_param(
     required: bool = False,
     enum: list[str] | None = None,
 ):
-    schema: dict[str, Any] = {"type": schema_type}
-    if enum:
-        schema["enum"] = enum
-
-    return {
-        "name": name,
-        "in": "query",
-        "required": required,
-        "description": description,
-        "schema": schema,
-    }
+    return OpenApiParameter(
+        name=name,
+        type=resolve_openapi_type(schema_type=schema_type),
+        location=OpenApiParameter.QUERY,
+        required=required,
+        description=description,
+        enum=enum,
+    )
 
 
 def path_param(name: str, description: str, schema_type: str = "string", schema_format: str | None = None):
-    schema: dict[str, Any] = {"type": schema_type}
-    if schema_format:
-        schema["format"] = schema_format
-
-    return {
-        "name": name,
-        "in": "path",
-        "required": True,
-        "description": description,
-        "schema": schema,
-    }
+    return OpenApiParameter(
+        name=name,
+        type=resolve_openapi_type(schema_type=schema_type, schema_format=schema_format),
+        location=OpenApiParameter.PATH,
+        required=True,
+        description=description,
+    )
 
 
 def haversine(lat1, lon1, lat2, lon2):

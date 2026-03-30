@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     
     # Third party apps
     'rest_framework',
+    'drf_spectacular',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     # 'drf_yasg',
@@ -186,7 +187,7 @@ REST_FRAMEWORK = {
     'TIME_FORMAT': '%H:%M:%S',
     # 'EXCEPTION_HANDLER': 'apps.core.exceptions.custom_exception_handler',
     'NON_FIELD_ERRORS_KEY': 'error',
-    # 'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 # JWT Settings
