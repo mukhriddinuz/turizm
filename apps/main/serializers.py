@@ -12,6 +12,41 @@ from .models import (
 )
 
 
+def normalize_text_value(value):
+    if isinstance(value, memoryview):
+        value = value.tobytes()
+
+    if isinstance(value, bytearray):
+        value = bytes(value)
+
+    if isinstance(value, bytes):
+        if value.startswith((b"\xff\xfe", b"\xfe\xff")):
+            try:
+                return value.decode("utf-16")
+            except UnicodeDecodeError:
+                pass
+
+        for encoding in ("utf-8", "utf-8-sig", "cp1251", "latin-1"):
+            try:
+                return value.decode(encoding)
+            except UnicodeDecodeError:
+                continue
+
+        return value.decode("utf-8", errors="replace")
+
+    return value
+
+
+def serialize_file_field(file_field):
+    if not file_field:
+        return None
+
+    try:
+        return normalize_text_value(file_field.url)
+    except Exception:
+        return normalize_text_value(str(file_field))
+
+
 class MultilingualField(serializers.Field):
     """
     ModelTranslation maydonlarini yagona ko'rinishda qaytaradi.
@@ -34,11 +69,11 @@ class MultilingualField(serializers.Field):
                 return None
 
         final_field = fields[-1]
-        fallback_value = getattr(obj, final_field, None)
+        fallback_value = normalize_text_value(getattr(obj, final_field, None))
         return {
-            "uz": getattr(obj, f"{final_field}_uz", fallback_value),
-            "ru": getattr(obj, f"{final_field}_ru", fallback_value),
-            "en": getattr(obj, f"{final_field}_en", fallback_value),
+            "uz": normalize_text_value(getattr(obj, f"{final_field}_uz", fallback_value)),
+            "ru": normalize_text_value(getattr(obj, f"{final_field}_ru", fallback_value)),
+            "en": normalize_text_value(getattr(obj, f"{final_field}_en", fallback_value)),
         }
 
 
@@ -64,7 +99,7 @@ class RegionPageSerializer(RegionListSerializer):
             cover_image__isnull=False,
         ).exclude(cover_image="").order_by("-is_featured", "-average_rating", "name").first()
         if destination:
-            return destination.cover_image
+            return serialize_file_field(destination.cover_image)
         return None
 
 
@@ -149,14 +184,14 @@ class RouteGuideListSerializer(serializers.ModelSerializer):
 
     def get_preview_image(self, obj):
         if obj.destination and obj.destination.cover_image:
-            return obj.destination.cover_image
+            return serialize_file_field(obj.destination.cover_image)
 
         destination = obj.destinations.filter(
             is_active=True,
             cover_image__isnull=False,
         ).exclude(cover_image="").order_by("-is_featured", "-average_rating", "name").first()
         if destination:
-            return destination.cover_image
+            return serialize_file_field(destination.cover_image)
         return None
 
 
