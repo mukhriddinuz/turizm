@@ -298,7 +298,7 @@ class RouteGuide(UUIDTimeStampedModel, PublishableModel):
         null=True,
         validators=[MinValueValidator(0)],
     )
-    # duration_text = models.CharField(_("Davomiyligi"), max_length=120, blank=True)
+    duration_text = models.CharField(_("Davomiyligi"), max_length=120, blank=True)
     # map_url = models.URLField(_("Yo'nalish havolasi"), blank=True)
     notes = models.TextField(_("Qo'shimcha izoh"), null=True, blank=True)
 

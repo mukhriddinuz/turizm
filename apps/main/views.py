@@ -1,4 +1,4 @@
-﻿import math
+import math
 
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
@@ -17,6 +17,7 @@ from .serializers import (
     CategoryListSerializer,
     DestinationBaseSerializer,
     DestinationCardSerializer,
+    DestinationNearbySerializer,
     DestinationDetailSerializer,
     DestinationMapSerializer,
     FAQSerializer,
@@ -434,6 +435,63 @@ class DestinationListAPIView(DestinationQuerysetMixin, generics.ListAPIView):
                 return queryset.order_by(*order_fields)
 
         return queryset.order_by("-is_featured", "-average_rating", "sort_order", "name")
+
+
+class NearbyPlacesAPIView(DestinationQuerysetMixin, APIView):
+    """
+    Foydalanuvchi turgan joydan ma'lum radiusdagi (km) joylarni qaytaradi.
+    Sahifalanmasdan barcha topilgan joylar yuboriladi.
+    """
+
+    permission_classes = [AllowAny]
+    schema = SwaggerAutoSchema(
+        tags=["Destinations"],
+        operation_id_base="places_nearby",
+        summary="Yaqindagi joylar",
+        description="Foydalanuvchi koordinatalari asosida belgilangan radiusdagi joylarni qaytaradi.",
+        manual_parameters=[
+            query_param("lat", "Foydalanuvchi kenglik koordinatasi.", schema_type="number", required=True),
+            query_param("lng", "Foydalanuvchi uzunlik koordinatasi.", schema_type="number", required=True),
+            query_param("radius", "Qidiruv radiusi (km). Standart: 10", schema_type="number"),
+        ],
+    )
+
+    def get(self, request, *args, **kwargs):
+        lat_param = request.query_params.get("lat")
+        lng_param = request.query_params.get("lng")
+        radius_param = request.query_params.get("radius", "10")
+
+        if not lat_param or not lng_param:
+            return Response({"error": "lat va lng parametrlari majburiy"}, status=400)
+
+        try:
+            user_lat = float(lat_param)
+            user_lng = float(lng_param)
+            radius = float(radius_param)
+        except ValueError:
+            return Response({"error": "Koordinatalar yoki radius noto'g'ri formatda"}, status=400)
+
+        queryset = self.get_base_queryset().filter(
+            latitude__isnull=False,
+            longitude__isnull=False
+        )
+
+        nearby_places = []
+        for item in queryset:
+            dist = haversine(
+                user_lat,
+                user_lng,
+                float(item.latitude),
+                float(item.longitude),
+            )
+            if dist <= radius:
+                item.distance_km = round(dist, 2)
+                nearby_places.append(item)
+
+        nearby_places.sort(key=lambda x: x.distance_km)
+
+        serializer = DestinationNearbySerializer(nearby_places, many=True, context={"request": request})
+        return Response({"results": serializer.data})
 
 
 class RegionListAPIView(generics.ListAPIView):

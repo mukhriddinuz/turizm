@@ -141,6 +141,7 @@ class RouteGuideSerializer(serializers.ModelSerializer):
     title = MultilingualField("title")
     starting_point = MultilingualField("starting_point")
     route_description = MultilingualField("route_description")
+    duration_text = MultilingualField("duration_text")
     notes = MultilingualField("notes")
     transport_type_label = serializers.CharField(source="get_transport_type_display", read_only=True)
     destinations = DestinationRoutePlaceSerializer(many=True, read_only=True)
@@ -155,6 +156,7 @@ class RouteGuideSerializer(serializers.ModelSerializer):
             "starting_point",
             "route_description",
             "distance_km",
+            "duration_text",
             "notes",
             "destinations",
         )
@@ -163,9 +165,10 @@ class RouteGuideSerializer(serializers.ModelSerializer):
 class RouteGuideListSerializer(serializers.ModelSerializer):
     title = MultilingualField("title")
     starting_point = MultilingualField("starting_point")
+    duration_text = MultilingualField("duration_text")
     transport_type_label = serializers.CharField(source="get_transport_type_display", read_only=True)
     destination = DestinationBaseSerializer(read_only=True)
-    destinations_count = serializers.IntegerField(read_only=True, required=False)
+    destinations = DestinationRoutePlaceSerializer(many=True, read_only=True)
     preview_image = serializers.SerializerMethodField()
 
     class Meta:
@@ -177,8 +180,9 @@ class RouteGuideListSerializer(serializers.ModelSerializer):
             "transport_type_label",
             "starting_point",
             "distance_km",
+            "duration_text",
             "destination",
-            "destinations_count",
+            "destinations",
             "preview_image",
         )
 
@@ -243,6 +247,13 @@ class DestinationCardSerializer(serializers.ModelSerializer):
             "google_maps_url",
             "yandex_maps_url",
         )
+
+
+class DestinationNearbySerializer(DestinationCardSerializer):
+    distance_km = serializers.FloatField(read_only=True)
+
+    class Meta(DestinationCardSerializer.Meta):
+        fields = DestinationCardSerializer.Meta.fields + ("distance_km",)
 
 
 class DestinationDetailSerializer(serializers.ModelSerializer):

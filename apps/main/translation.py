@@ -46,7 +46,7 @@ class DestinationImageTranslationOptions(TranslationOptions):
 
 @register(RouteGuide)
 class RouteGuideTranslationOptions(TranslationOptions):
-    fields = ('title', 'starting_point', 'route_description', 'notes')
+    fields = ('title', 'starting_point', 'route_description', 'duration_text', 'notes')
 
 
 @register(FAQ)

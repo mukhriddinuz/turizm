@@ -7,6 +7,7 @@ from .views import (
     FilterMetaAPIView,
     HomeAPIView,
     MapDestinationAPIView,
+    NearbyPlacesAPIView,
     RegionDetailAPIView,
     RegionListAPIView,
     RouteGuideDetailAPIView,
@@ -19,6 +20,7 @@ app_name = 'main'
 urlpatterns = [
     path('home/', HomeAPIView.as_view(), name='home'),
     path('places/', DestinationListAPIView.as_view(), name='place-list'),
+    path('places/nearby/', NearbyPlacesAPIView.as_view(), name='places-nearby'),
     path('places/<slug:slug>/', DestinationDetailAPIView.as_view(), name='place-detail'),
     path('places/<slug:slug>/routes/', DestinationRoutesAPIView.as_view(), name='place-routes'),
     path('routes/', RouteGuideListAPIView.as_view(), name='route-list'),
