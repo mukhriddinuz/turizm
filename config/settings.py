@@ -79,37 +79,37 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# # Database
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': config('DB_NAME', default='django_db'),
-#         'USER': config('DB_USER', default='postgres'),
-#         'PASSWORD': config('DB_PASSWORD', default='postgres'),
-#         'HOST': config('DB_HOST', default='localhost'),
-#         'PORT': config('DB_PORT', default='5432'),
-#         'ATOMIC_REQUESTS': True,
-#         'CONN_MAX_AGE': 600,
-#         'OPTIONS': {
-#             'pool': {
-#                 'min_size': 2,
-#                 'max_size': 10,
-#                 'timeout': 10,
-#             }
-#         }
-#     }
-# }
-
+# Database
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config('DB_NAME', default='turizm_db'),
+        'USER': config('DB_USER', default='turizm'),
+        'PASSWORD': config('DB_PASSWORD', default='turizm_db'),
+        'HOST': config('DB_HOST', default='localhost'),
+        'PORT': config('DB_PORT', default='5432'),
         'ATOMIC_REQUESTS': True,
+        'CONN_MAX_AGE': 600,
         'OPTIONS': {
-            'timeout': 20,  # Timeout in seconds
+            'pool': {
+                'min_size': 2,
+                'max_size': 10,
+                'timeout': 10,
+            }
         }
     }
 }
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#         'ATOMIC_REQUESTS': True,
+#         'OPTIONS': {
+#             'timeout': 20,  # Timeout in seconds
+#         }
+#     }
+# }
 
 # Custom User Model
 # AUTH_USER_MODEL = 'account.User'
