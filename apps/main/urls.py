@@ -13,6 +13,7 @@ from .views import (
     RouteGuideDetailAPIView,
     RouteGuideListAPIView,
     SearchSuggestionAPIView,
+    SocialMediaAPIView,
 )
 
 app_name = 'main'
@@ -31,4 +32,5 @@ urlpatterns = [
     path('faqs/', FAQListAPIView.as_view(), name='faq-list'),
     path('search/suggestions/', SearchSuggestionAPIView.as_view(), name='search-suggestions'),
     path('meta/filters/', FilterMetaAPIView.as_view(), name='meta-filters'),
+    path('social-media/', SocialMediaAPIView.as_view(), name='social-media'),
 ]

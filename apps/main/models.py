@@ -388,3 +388,18 @@ class AboutUzbekistan(UUIDTimeStampedModel, PublishableModel):
 
     def __str__(self) -> str:
         return self.title
+
+
+class SocialMedia(UUIDTimeStampedModel, PublishableModel):
+    instagram = models.URLField(_("Instagram"), blank=True)
+    facebook = models.URLField(_("Facebook"), blank=True)
+    youtube = models.URLField(_("YouTube"), blank=True)
+    telegram = models.URLField(_("Telegram"), blank=True)
+
+    class Meta:
+        ordering = ["created_at"]
+        verbose_name = _("Ijtimoiy tarmoq")
+        verbose_name_plural = _("Ijtimoiy tarmoqlar")
+
+    def __str__(self) -> str:
+        return "Ijtimoiy tarmoq havolalari"

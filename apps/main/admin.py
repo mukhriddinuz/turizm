@@ -9,7 +9,8 @@ from .models import (
     RouteGuide,
     FAQ,
     ImagesHomepage,
-    AboutUzbekistan
+    AboutUzbekistan,
+    SocialMedia
 )
 
 
@@ -74,3 +75,9 @@ class ImagesHomepageAdmin(admin.ModelAdmin):
 class AboutUzbekistanAdmin(TranslationAdmin):
     list_display = ('title', 'is_active')
     search_fields = ('title',)
+
+
+@admin.register(SocialMedia)
+class SocialMediaAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'instagram', 'facebook', 'youtube', 'is_active')
+

@@ -9,6 +9,7 @@ from .models import (
     ImagesHomepage,
     Region,
     RouteGuide,
+    SocialMedia,
 )
 
 
@@ -363,3 +364,10 @@ class AboutUzbekistanSerializer(serializers.ModelSerializer):
     class Meta:
         model = AboutUzbekistan
         fields = ("title", "description", "images")
+
+
+class SocialMediaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SocialMedia
+        fields = ("instagram", "facebook", "youtube", "telegram")
+

@@ -11,7 +11,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import AboutUzbekistan, Destination, DestinationCategory, FAQ, Region, RouteGuide
+from .models import AboutUzbekistan, Destination, DestinationCategory, FAQ, Region, RouteGuide, SocialMedia
 from .serializers import (
     AboutUzbekistanSerializer,
     CategoryListSerializer,
@@ -27,6 +27,7 @@ from .serializers import (
     RouteGuideListSerializer,
     RouteGuideSerializer,
     SearchSuggestionSerializer,
+    SocialMediaSerializer,
 )
 
 SEARCH_FIELDS = (
@@ -387,6 +388,9 @@ class HomeAPIView(APIView):
             "tourist_count": destination_qs.filter(destination_type=Destination.DestinationType.TOURIST).count(),
         }
 
+        social_media_obj = SocialMedia.objects.filter(is_active=True).first()
+        social_media_data = SocialMediaSerializer(social_media_obj).data if social_media_obj else None
+
         return Response(
             {
                 "banner": banner_data,
@@ -398,6 +402,7 @@ class HomeAPIView(APIView):
                 "nearby_tourist_objects": DestinationCardSerializer(nearby_places, many=True, context={"request": request}).data,
                 "categories": CategoryListSerializer(categories, many=True, context={"request": request}).data,
                 "regions": RegionListSerializer(regions, many=True, context={"request": request}).data,
+                "social_media": social_media_data,
             }
         )
 
@@ -836,3 +841,24 @@ class FilterMetaAPIView(APIView):
                 "categories": CategoryListSerializer(categories, many=True, context={"request": request}).data,
             }
         )
+
+
+class SocialMediaAPIView(APIView):
+    """
+    Ijtimoiy tarmoqlar (Social Media) ro'yxatini qaytaradi.
+    """
+
+    permission_classes = [AllowAny]
+    schema = SwaggerAutoSchema(
+        tags=["Meta"],
+        operation_id_base="social_media",
+        summary="Ijtimoiy tarmoqlar",
+        description="Loyiha ijtimoiy tarmoq havolalarini qaytaradi.",
+    )
+
+    def get(self, request, *args, **kwargs):
+        social_media_obj = SocialMedia.objects.filter(is_active=True).first()
+        if social_media_obj:
+            serializer = SocialMediaSerializer(social_media_obj)
+            return Response(serializer.data)
+        return Response({})
