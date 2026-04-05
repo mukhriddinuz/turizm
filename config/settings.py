@@ -90,13 +90,13 @@ DATABASES = {
         'PORT': config('DB_PORT', default='5432'),
         'ATOMIC_REQUESTS': True,
         'CONN_MAX_AGE': 600,
-        'OPTIONS': {
-            'pool': {
-                'min_size': 2,
-                'max_size': 10,
-                'timeout': 10,
-            }
-        }
+        # 'OPTIONS': {
+        #     'pool': {
+        #         'min_size': 2,
+        #         'max_size': 10,
+        #         'timeout': 10,
+        #     }
+        # }
     }
 }
 
