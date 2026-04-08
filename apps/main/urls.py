@@ -1,6 +1,7 @@
 from django.urls import path
 from .views import (
     AboutAPIView,
+    CultureListAPIView,
     DestinationDetailAPIView,
     DestinationListAPIView,
     DestinationRoutesAPIView,
@@ -13,7 +14,9 @@ from .views import (
     RegionListAPIView,
     RouteGuideDetailAPIView,
     RouteGuideListAPIView,
+    SearchGlobalAPIView,
     SearchSuggestionAPIView,
+    SEOMetaAPIView,
     SocialMediaAPIView,
 )
 
@@ -22,6 +25,8 @@ app_name = 'main'
 urlpatterns = [
     path('home/', HomeAPIView.as_view(), name='home'),
     path('about/', AboutAPIView.as_view(), name='about'),
+    path('culture/', CultureListAPIView.as_view(), name='culture-list'),
+    path('madaniyat/', CultureListAPIView.as_view(), name='madaniyat-list'),
     path('places/', DestinationListAPIView.as_view(), name='place-list'),
     path('places/nearby/', NearbyPlacesAPIView.as_view(), name='places-nearby'),
     path('places/<slug:slug>/', DestinationDetailAPIView.as_view(), name='place-detail'),
@@ -33,6 +38,8 @@ urlpatterns = [
     path('map/places/', MapDestinationAPIView.as_view(), name='map-places'),
     path('faqs/', FAQListAPIView.as_view(), name='faq-list'),
     path('search/suggestions/', SearchSuggestionAPIView.as_view(), name='search-suggestions'),
+    path('search/global/', SearchGlobalAPIView.as_view(), name='search-global'),
     path('meta/filters/', FilterMetaAPIView.as_view(), name='meta-filters'),
+    path('seo/meta/', SEOMetaAPIView.as_view(), name='seo-meta'),
     path('social-media/', SocialMediaAPIView.as_view(), name='social-media'),
 ]

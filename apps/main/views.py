@@ -1,6 +1,7 @@
 import math
 
-from django.db.models import Count, Q
+from django.core.cache import cache
+from django.db.models import Case, Count, IntegerField, Prefetch, Q, Value, When
 from django.shortcuts import get_object_or_404
 from drf_spectacular.openapi import AutoSchema
 from drf_spectacular.types import OpenApiTypes
@@ -11,9 +12,10 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import AboutUzbekistan, Destination, DestinationCategory, FAQ, Region, RouteGuide, SocialMedia
+from .models import AboutUzbekistan, AboutUzbekistanVideo, CultureItem, Destination, DestinationCategory, FAQ, Region, RouteGuide, SocialMedia
 from .serializers import (
     AboutUzbekistanSerializer,
+    CultureItemSerializer,
     CategoryListSerializer,
     DestinationBaseSerializer,
     DestinationCardSerializer,
@@ -52,6 +54,122 @@ ROUTE_SEARCH_FIELDS = (
     "route_description_ru",
     "route_description_en",
 )
+REGION_SEARCH_FIELDS = (
+    "name",
+    "name_uz",
+    "name_ru",
+    "name_en",
+    "info",
+    "info_uz",
+    "info_ru",
+    "info_en",
+)
+
+CACHE_TTL_SEARCH_SECONDS = 60 * 5
+
+
+def normalize_search_query(value: str) -> str:
+    return " ".join(str(value or "").strip().split())
+
+
+def pick_localized_dict_value(value, lang: str) -> str:
+    if isinstance(value, dict):
+        return value.get(lang) or value.get("uz") or value.get("en") or ""
+    return str(value or "")
+
+
+def get_translated_value(obj, field: str, lang: str) -> str:
+    localized_attr = f"{field}_{lang}"
+    localized = getattr(obj, localized_attr, None)
+    if localized:
+        return str(localized)
+    fallback = getattr(obj, field, "")
+    return str(fallback or "")
+
+
+def build_cache_key(prefix: str, *parts: str) -> str:
+    normalized = [normalize_search_query(part) for part in parts]
+    return f"{prefix}:" + ":".join(normalized)
+
+
+def destination_relevance_expression(query_text: str):
+    if not query_text:
+        return Value(0, output_field=IntegerField())
+
+    name_contains_query = (
+        Q(name__icontains=query_text)
+        | Q(name_uz__icontains=query_text)
+        | Q(name_ru__icontains=query_text)
+        | Q(name_en__icontains=query_text)
+    )
+    description_contains_query = (
+        Q(short_description__icontains=query_text)
+        | Q(short_description_uz__icontains=query_text)
+        | Q(short_description_ru__icontains=query_text)
+        | Q(short_description_en__icontains=query_text)
+    )
+
+    return (
+        Case(When(slug__iexact=query_text, then=Value(140)), default=Value(0), output_field=IntegerField())
+        + Case(When(name__iexact=query_text, then=Value(120)), default=Value(0), output_field=IntegerField())
+        + Case(When(name__istartswith=query_text, then=Value(90)), default=Value(0), output_field=IntegerField())
+        + Case(When(name_contains_query, then=Value(60)), default=Value(0), output_field=IntegerField())
+        + Case(When(description_contains_query, then=Value(25)), default=Value(0), output_field=IntegerField())
+        + Case(When(is_featured=True, then=Value(10)), default=Value(0), output_field=IntegerField())
+    )
+
+
+def route_relevance_expression(query_text: str):
+    if not query_text:
+        return Value(0, output_field=IntegerField())
+
+    title_contains_query = (
+        Q(title__icontains=query_text)
+        | Q(title_uz__icontains=query_text)
+        | Q(title_ru__icontains=query_text)
+        | Q(title_en__icontains=query_text)
+    )
+    description_contains_query = (
+        Q(route_description__icontains=query_text)
+        | Q(route_description_uz__icontains=query_text)
+        | Q(route_description_ru__icontains=query_text)
+        | Q(route_description_en__icontains=query_text)
+    )
+
+    return (
+        Case(When(title__iexact=query_text, then=Value(130)), default=Value(0), output_field=IntegerField())
+        + Case(When(title__istartswith=query_text, then=Value(90)), default=Value(0), output_field=IntegerField())
+        + Case(When(title_contains_query, then=Value(55)), default=Value(0), output_field=IntegerField())
+        + Case(When(description_contains_query, then=Value(25)), default=Value(0), output_field=IntegerField())
+        + Case(When(is_featured=True, then=Value(10)), default=Value(0), output_field=IntegerField())
+    )
+
+
+def region_relevance_expression(query_text: str):
+    if not query_text:
+        return Value(0, output_field=IntegerField())
+
+    name_contains_query = (
+        Q(name__icontains=query_text)
+        | Q(name_uz__icontains=query_text)
+        | Q(name_ru__icontains=query_text)
+        | Q(name_en__icontains=query_text)
+    )
+    info_contains_query = (
+        Q(info__icontains=query_text)
+        | Q(info_uz__icontains=query_text)
+        | Q(info_ru__icontains=query_text)
+        | Q(info_en__icontains=query_text)
+    )
+
+    return (
+        Case(When(slug__iexact=query_text, then=Value(130)), default=Value(0), output_field=IntegerField())
+        + Case(When(name__iexact=query_text, then=Value(120)), default=Value(0), output_field=IntegerField())
+        + Case(When(name__istartswith=query_text, then=Value(90)), default=Value(0), output_field=IntegerField())
+        + Case(When(name_contains_query, then=Value(60)), default=Value(0), output_field=IntegerField())
+        + Case(When(info_contains_query, then=Value(20)), default=Value(0), output_field=IntegerField())
+        + Case(When(is_featured=True, then=Value(10)), default=Value(0), output_field=IntegerField())
+    )
 
 
 class SwaggerAutoSchema(AutoSchema):
@@ -196,6 +314,13 @@ def build_route_search_query(search_text):
     return query
 
 
+def build_region_search_query(search_text):
+    query = Q()
+    for field in REGION_SEARCH_FIELDS:
+        query |= Q(**{f"{field}__icontains": search_text})
+    return query
+
+
 def apply_route_filters(queryset, params):
     query_text = params.get("q", "").strip()
     transport_type = params.get("transport_type", "").strip()
@@ -214,7 +339,11 @@ def apply_route_filters(queryset, params):
 
 
 def get_about_uzbekistan_data(request):
-    about_obj = AboutUzbekistan.objects.filter(is_active=True).prefetch_related("images").order_by(
+    video_queryset = AboutUzbekistanVideo.objects.filter(is_active=True).order_by("sort_order", "created_at")
+    about_obj = AboutUzbekistan.objects.filter(is_active=True).prefetch_related(
+        "images",
+        Prefetch("videos", queryset=video_queryset),
+    ).order_by(
         "sort_order", "created_at"
     ).first()
     if about_obj:
@@ -232,8 +361,20 @@ def get_about_uzbekistan_data(request):
             "en": "Uzbekistan has ancient cities, shrines, and rich cultural heritage.",
         },
         "video_url": "",
+        "videos": [],
         "images": [],
     }
+
+
+def get_culture_items_data(request, limit: int = 8):
+    queryset = CultureItem.objects.filter(is_active=True).order_by(
+        "-is_featured",
+        "sort_order",
+        "title",
+    )
+    if limit > 0:
+        queryset = queryset[:limit]
+    return CultureItemSerializer(queryset, many=True, context={"request": request}).data
 
 
 class StandardResultsSetPagination(PageNumberPagination):
@@ -408,6 +549,7 @@ class HomeAPIView(APIView):
                 "pilgrimage_places": DestinationCardSerializer(pilgrims, many=True, context={"request": request}).data,
                 "recommended_routes": RouteGuideSerializer(routes, many=True, context={"request": request}).data,
                 "nearby_tourist_objects": DestinationCardSerializer(nearby_places, many=True, context={"request": request}).data,
+                "culture_items": get_culture_items_data(request, limit=8),
                 "categories": CategoryListSerializer(categories, many=True, context={"request": request}).data,
                 "regions": RegionListSerializer(regions, many=True, context={"request": request}).data,
                 "social_media": social_media_data,
@@ -430,6 +572,32 @@ class AboutAPIView(APIView):
 
     def get(self, request, *args, **kwargs):
         return Response({"about_uzbekistan": get_about_uzbekistan_data(request)})
+
+
+class CultureListAPIView(APIView):
+    """
+    Madaniyat bo'limi kartochkalari.
+    """
+
+    permission_classes = [AllowAny]
+    schema = SwaggerAutoSchema(
+        tags=["Culture"],
+        operation_id_base="culture_list",
+        summary="Madaniyat ro'yxati",
+        description="Madaniyat bo'limi uchun kartochkalar ro'yxati.",
+        manual_parameters=[
+            query_param("limit", "Natijalar soni (1-100). Standart: 24", schema_type="integer"),
+        ],
+    )
+
+    def get(self, request, *args, **kwargs):
+        limit_param = request.query_params.get("limit", "24")
+        try:
+            limit = max(1, min(100, int(limit_param)))
+        except ValueError:
+            limit = 24
+
+        return Response({"results": get_culture_items_data(request, limit=limit)})
 
 
 class DestinationListAPIView(DestinationQuerysetMixin, generics.ListAPIView):
@@ -795,7 +963,7 @@ class SearchSuggestionAPIView(DestinationQuerysetMixin, APIView):
     )
 
     def get(self, request, *args, **kwargs):
-        query_text = request.query_params.get("q", "").strip()
+        query_text = normalize_search_query(request.query_params.get("q", ""))
         if not query_text:
             return Response({"query": query_text, "results": []})
 
@@ -805,14 +973,453 @@ class SearchSuggestionAPIView(DestinationQuerysetMixin, APIView):
         except ValueError:
             limit = 10
 
-        queryset = self.get_base_queryset().filter(build_search_query(query_text)).order_by(
-            "-is_featured",
+        cache_key = build_cache_key("search:suggestions", query_text, str(limit))
+        cached_payload = cache.get(cache_key)
+        if cached_payload is not None:
+            return Response(cached_payload)
+
+        queryset = self.get_base_queryset().filter(build_search_query(query_text)).annotate(
+            search_rank=destination_relevance_expression(query_text)
+        ).order_by(
+            "-search_rank",
             "-average_rating",
+            "-is_featured",
             "name",
         )[:limit]
 
         serializer = SearchSuggestionSerializer(queryset, many=True, context={"request": request})
-        return Response({"query": query_text, "results": serializer.data})
+        payload = {"query": query_text, "results": serializer.data}
+        cache.set(cache_key, payload, CACHE_TTL_SEARCH_SECONDS)
+        return Response(payload)
+
+
+class SearchGlobalAPIView(APIView):
+    """
+    Destination, route va region bo'yicha global qidiruv.
+    """
+
+    permission_classes = [AllowAny]
+    schema = SwaggerAutoSchema(
+        tags=["Search"],
+        operation_id_base="search_global",
+        summary="Global qidiruv",
+        description="Destination, route va region bo'yicha relevance asosidagi global qidiruv.",
+        manual_parameters=[
+            query_param("q", "Qidiruv matni.", required=True),
+            query_param("limit", "Har bir bo'lim uchun maksimal natija soni (1-30).", schema_type="integer"),
+        ],
+    )
+
+    def get(self, request, *args, **kwargs):
+        query_text = normalize_search_query(request.query_params.get("q", ""))
+        if not query_text:
+            return Response(
+                {
+                    "query": "",
+                    "totals": {"destinations": 0, "routes": 0, "regions": 0, "all": 0},
+                    "results": {"destinations": [], "routes": [], "regions": []},
+                }
+            )
+
+        limit_param = request.query_params.get("limit", "8")
+        try:
+            limit = max(1, min(30, int(limit_param)))
+        except ValueError:
+            limit = 8
+
+        cache_key = build_cache_key("search:global", query_text, str(limit))
+        cached_payload = cache.get(cache_key)
+        if cached_payload is not None:
+            return Response(cached_payload)
+
+        destinations = Destination.objects.filter(
+            is_active=True,
+            region__is_active=True,
+        ).select_related("region", "region__country").prefetch_related("categories").filter(
+            build_search_query(query_text)
+        ).annotate(
+            search_rank=destination_relevance_expression(query_text)
+        ).order_by(
+            "-search_rank",
+            "-average_rating",
+            "-is_featured",
+            "name",
+        )[:limit]
+
+        routes = RouteGuide.objects.filter(
+            is_active=True,
+            destination__is_active=True,
+        ).select_related("destination", "destination__region").prefetch_related(
+            "destinations",
+            "destinations__region",
+            "destinations__categories",
+        ).filter(
+            build_route_search_query(query_text)
+        ).annotate(
+            search_rank=route_relevance_expression(query_text),
+            destinations_count=Count("destinations", distinct=True),
+        ).order_by(
+            "-search_rank",
+            "-is_featured",
+            "sort_order",
+            "title",
+        )[:limit]
+
+        regions = Region.objects.filter(is_active=True).filter(
+            build_region_search_query(query_text)
+        ).annotate(
+            search_rank=region_relevance_expression(query_text),
+            count=Count(
+                "destinations",
+                filter=Q(destinations__is_active=True),
+                distinct=True,
+            ),
+        ).order_by(
+            "-search_rank",
+            "-count",
+            "sort_order",
+            "name",
+        )[:limit]
+
+        destination_data = DestinationCardSerializer(destinations, many=True, context={"request": request}).data
+        route_data = RouteGuideListSerializer(routes, many=True, context={"request": request}).data
+        region_data = RegionListSerializer(regions, many=True, context={"request": request}).data
+
+        payload = {
+            "query": query_text,
+            "totals": {
+                "destinations": len(destination_data),
+                "routes": len(route_data),
+                "regions": len(region_data),
+                "all": len(destination_data) + len(route_data) + len(region_data),
+            },
+            "results": {
+                "destinations": destination_data,
+                "routes": route_data,
+                "regions": region_data,
+            },
+        }
+        cache.set(cache_key, payload, CACHE_TTL_SEARCH_SECONDS)
+        return Response(payload)
+
+
+class SEOMetaAPIView(APIView):
+    """
+    Frontend uchun page-level SEO metadata endpointi.
+    """
+
+    permission_classes = [AllowAny]
+    schema = SwaggerAutoSchema(
+        tags=["SEO"],
+        operation_id_base="seo_meta",
+        summary="SEO metadata",
+        description="Berilgan page_type uchun meta, OG, Twitter va structured_data qaytaradi.",
+        manual_parameters=[
+            query_param("page_type", "home | about | culture | place | route | region | search", required=True),
+            query_param("lang", "uz | ru | en (default: uz)"),
+            query_param("slug", "place yoki region uchun slug"),
+            query_param("id", "route uchun UUID"),
+            query_param("q", "search page uchun qidiruv matni"),
+        ],
+    )
+
+    def _build_payload(
+        self,
+        *,
+        title: str,
+        description: str,
+        keywords: str,
+        canonical_url: str,
+        image_url: str,
+        robots: str,
+        structured_data: dict,
+        page_type: str,
+    ):
+        return {
+            "page_type": page_type,
+            "title": title,
+            "description": description,
+            "keywords": keywords,
+            "canonical_url": canonical_url,
+            "robots": robots,
+            "og": {
+                "title": title,
+                "description": description,
+                "type": "website",
+                "url": canonical_url,
+                "image": image_url,
+            },
+            "twitter": {
+                "card": "summary_large_image",
+                "title": title,
+                "description": description,
+                "image": image_url,
+            },
+            "structured_data": structured_data,
+        }
+
+    def get(self, request, *args, **kwargs):
+        page_type = normalize_search_query(request.query_params.get("page_type", "")).lower()
+        lang = normalize_search_query(request.query_params.get("lang", "uz")).lower() or "uz"
+        if lang not in {"uz", "ru", "en"}:
+            lang = "uz"
+
+        base_url = request.build_absolute_uri("/").rstrip("/")
+        default_image = request.build_absolute_uri("/media/homepage/banner.jpg")
+
+        if page_type == "home":
+            title = "UzTourism - O'zbekiston bo'ylab sayohat va ziyorat"
+            description = "O'zbekistonning turistik joylari, ziyoratgohlari va marshrutlari bo'yicha to'liq qo'llanma."
+            keywords = "uzbekistan tourism, travel uzbekistan, ziyorat, tour routes"
+            canonical_url = f"{base_url}/"
+            structured_data = {
+                "@context": "https://schema.org",
+                "@type": "WebSite",
+                "name": "UzTourism",
+                "url": canonical_url,
+                "potentialAction": {
+                    "@type": "SearchAction",
+                    "target": f"{base_url}/search?q={{search_term_string}}",
+                    "query-input": "required name=search_term_string",
+                },
+            }
+            return Response(
+                self._build_payload(
+                    title=title,
+                    description=description,
+                    keywords=keywords,
+                    canonical_url=canonical_url,
+                    image_url=default_image,
+                    robots="index,follow",
+                    structured_data=structured_data,
+                    page_type=page_type,
+                )
+            )
+
+        if page_type == "about":
+            about_data = get_about_uzbekistan_data(request)
+            title_text = pick_localized_dict_value(about_data.get("title"), lang)
+            desc_text = pick_localized_dict_value(about_data.get("description"), lang)
+            about_images = about_data.get("images") or []
+            image_url = about_images[0].get("image") if about_images else default_image
+            about_videos = about_data.get("videos") or []
+            video_urls = [item.get("url") for item in about_videos if isinstance(item, dict) and item.get("url")]
+            if not video_urls and about_data.get("video_url"):
+                # Backward compatibility: eski single maydon bo'lsa ham structured data ishlasin.
+                video_urls = [about_data.get("video_url")]
+            canonical_url = f"{base_url}/about/"
+            structured_data = {
+                "@context": "https://schema.org",
+                "@type": "AboutPage",
+                "name": title_text,
+                "description": desc_text,
+                "url": canonical_url,
+            }
+            if video_urls:
+                video_objects = [
+                    {
+                        "@type": "VideoObject",
+                        "name": f"{title_text} video {idx + 1}",
+                        "description": desc_text,
+                        "contentUrl": url,
+                    }
+                    for idx, url in enumerate(video_urls)
+                ]
+                structured_data["video"] = video_objects[0] if len(video_objects) == 1 else video_objects
+
+            return Response(
+                self._build_payload(
+                    title=f"{title_text} | UzTourism",
+                    description=desc_text,
+                    keywords="about uzbekistan, uzbekistan tourism, uzbekistan travel guide",
+                    canonical_url=canonical_url,
+                    image_url=image_url,
+                    robots="index,follow",
+                    structured_data=structured_data,
+                    page_type=page_type,
+                )
+            )
+
+        if page_type == "culture":
+            culture_items = get_culture_items_data(request, limit=8)
+            canonical_url = f"{base_url}/culture/"
+            title = "Madaniyat | UzTourism"
+            description = "Milliy hunarmandchilik, an'analar va madaniy meros bo'yicha tanlangan kartochkalar."
+            image_url = default_image
+            if culture_items and isinstance(culture_items[0], dict):
+                image_url = culture_items[0].get("image") or default_image
+
+            structured_data = {
+                "@context": "https://schema.org",
+                "@type": "CollectionPage",
+                "name": title,
+                "description": description,
+                "url": canonical_url,
+            }
+
+            return Response(
+                self._build_payload(
+                    title=title,
+                    description=description,
+                    keywords="madaniyat, culture uzbekistan, handicraft, heritage",
+                    canonical_url=canonical_url,
+                    image_url=image_url,
+                    robots="index,follow",
+                    structured_data=structured_data,
+                    page_type=page_type,
+                )
+            )
+
+        if page_type == "place":
+            slug = normalize_search_query(request.query_params.get("slug", ""))
+            if not slug:
+                return Response({"detail": "place uchun slug parametri majburiy."}, status=400)
+
+            destination = get_object_or_404(
+                Destination.objects.select_related("region", "region__country").prefetch_related("categories"),
+                is_active=True,
+                region__is_active=True,
+                slug=slug,
+            )
+            name = get_translated_value(destination, "name", lang)
+            summary = get_translated_value(destination, "short_description", lang)
+            image_url = (
+                request.build_absolute_uri(destination.hero_image.url)
+                if destination.hero_image
+                else request.build_absolute_uri(destination.cover_image.url)
+                if destination.cover_image
+                else default_image
+            )
+            category_keywords = ", ".join(destination.categories.values_list("slug", flat=True))
+            canonical_url = f"{base_url}/places/{destination.slug}/"
+            structured_data = {
+                "@context": "https://schema.org",
+                "@type": "TouristAttraction",
+                "name": name,
+                "description": summary,
+                "url": canonical_url,
+                "address": get_translated_value(destination, "address", lang),
+                "geo": {
+                    "@type": "GeoCoordinates",
+                    "latitude": float(destination.latitude) if destination.latitude is not None else None,
+                    "longitude": float(destination.longitude) if destination.longitude is not None else None,
+                },
+            }
+
+            return Response(
+                self._build_payload(
+                    title=f"{name} | UzTourism",
+                    description=summary,
+                    keywords=f"{name}, {category_keywords}, uzbekistan tourism",
+                    canonical_url=canonical_url,
+                    image_url=image_url,
+                    robots="index,follow",
+                    structured_data=structured_data,
+                    page_type=page_type,
+                )
+            )
+
+        if page_type == "region":
+            slug = normalize_search_query(request.query_params.get("slug", ""))
+            if not slug:
+                return Response({"detail": "region uchun slug parametri majburiy."}, status=400)
+
+            region = get_object_or_404(Region.objects.select_related("country"), is_active=True, slug=slug)
+            name = get_translated_value(region, "name", lang)
+            info = get_translated_value(region, "info", lang)
+            featured_destination = region.destinations.filter(
+                is_active=True,
+                cover_image__isnull=False,
+            ).exclude(cover_image="").order_by("-is_featured", "-average_rating", "name").first()
+            image_url = request.build_absolute_uri(featured_destination.cover_image.url) if featured_destination else default_image
+            canonical_url = f"{base_url}/regions/{region.slug}/"
+            structured_data = {
+                "@context": "https://schema.org",
+                "@type": "Place",
+                "name": name,
+                "description": info,
+                "url": canonical_url,
+            }
+
+            return Response(
+                self._build_payload(
+                    title=f"{name} viloyati | UzTourism",
+                    description=info or f"{name} viloyatidagi turistik joylar va ziyoratgohlar.",
+                    keywords=f"{name}, region uzbekistan, tourism",
+                    canonical_url=canonical_url,
+                    image_url=image_url,
+                    robots="index,follow",
+                    structured_data=structured_data,
+                    page_type=page_type,
+                )
+            )
+
+        if page_type == "route":
+            route_id = normalize_search_query(request.query_params.get("id", ""))
+            if not route_id:
+                return Response({"detail": "route uchun id (UUID) parametri majburiy."}, status=400)
+
+            route = get_object_or_404(
+                RouteGuide.objects.select_related("destination", "destination__region"),
+                is_active=True,
+                destination__is_active=True,
+                id=route_id,
+            )
+            title = get_translated_value(route, "title", lang)
+            description = get_translated_value(route, "route_description", lang)
+            image_url = (
+                request.build_absolute_uri(route.destination.cover_image.url)
+                if route.destination and route.destination.cover_image
+                else default_image
+            )
+            canonical_url = f"{base_url}/routes/{route.id}/"
+            structured_data = {
+                "@context": "https://schema.org",
+                "@type": "TouristTrip",
+                "name": title,
+                "description": description,
+                "url": canonical_url,
+            }
+
+            return Response(
+                self._build_payload(
+                    title=f"{title} | UzTourism",
+                    description=description,
+                    keywords=f"{title}, route, travel uzbekistan",
+                    canonical_url=canonical_url,
+                    image_url=image_url,
+                    robots="index,follow",
+                    structured_data=structured_data,
+                    page_type=page_type,
+                )
+            )
+
+        if page_type == "search":
+            query_text = normalize_search_query(request.query_params.get("q", ""))
+            canonical_url = f"{base_url}/search/?q={query_text}"
+            structured_data = {
+                "@context": "https://schema.org",
+                "@type": "SearchResultsPage",
+                "name": f'"{query_text}" bo‘yicha qidiruv natijalari',
+                "url": canonical_url,
+            }
+            return Response(
+                self._build_payload(
+                    title=f'"{query_text}" bo‘yicha natijalar | UzTourism',
+                    description=f'"{query_text}" bo‘yicha qidiruv natijalari sahifasi.',
+                    keywords=f"search, {query_text}, uzbekistan tourism",
+                    canonical_url=canonical_url,
+                    image_url=default_image,
+                    robots="noindex,follow",
+                    structured_data=structured_data,
+                    page_type=page_type,
+                )
+            )
+
+        return Response(
+            {"detail": "Noto'g'ri page_type. Ruxsat etilganlari: home, about, culture, place, route, region, search"},
+            status=400,
+        )
 
 
 class FilterMetaAPIView(APIView):

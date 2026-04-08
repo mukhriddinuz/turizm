@@ -5,11 +5,14 @@ from io import BytesIO
 from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from django.utils.text import slugify
 from PIL import Image, ImageDraw, ImageFont
 
 from apps.main.models import (
     AboutUzbekistan,
+    AboutUzbekistanVideo,
     Country,
+    CultureItem,
     Destination,
     DestinationCategory,
     DestinationImage,
@@ -77,6 +80,23 @@ ROUTES = [
     ("Toshkent city tour", "taxi", "amir-temur-xiyoboni", ["amir-temur-xiyoboni", "hazrati-imom-majmuasi", "toshkent-teleminorasi"], "22.4"),
 ]
 
+ABOUT_VIDEOS = [
+    ("Uzbekistan tourism intro", "https://www.youtube.com/watch?v=aqz-KE-bpKQ"),
+    ("Samarkand travel guide", "https://www.youtube.com/watch?v=dQw4w9WgXcQ"),
+    ("Bukhara heritage tour", "https://www.youtube.com/watch?v=9bZkp7q19f0"),
+]
+
+CULTURE_ITEMS = [
+    ("Kulolchilik", "Kulolchilik san'ati va milliy idishlar an'anasi."),
+    ("Gilamdo'zlik", "Qo'lda to'qilgan gilamlar va bezak uslublari."),
+    ("Hunarmandchilik", "Mahalliy ustalar ishlari va qadimiy usullar."),
+    ("O'zbek adrasi", "Atlas va adras matolarini tayyorlash madaniyati."),
+    ("O'zbek palovi", "Milliy taom tayyorlash va dasturxon an'analari."),
+    ("O'zbek to'yi", "To'y marosimlari va milliy urf-odatlar."),
+    ("Qog'ozni san'atda ishlatish", "Qog'oz o'ymakorligi va amaliy san'at."),
+    ("Amir Temur muzeyi", "Tarixiy merosni aks ettiruvchi muzey tajribasi."),
+]
+
 
 class Command(BaseCommand):
     help = "Frontend testlari uchun to'liq demo ma'lumotlarni yaratadi."
@@ -101,6 +121,7 @@ class Command(BaseCommand):
             self._seed_routes(destinations)
             self._seed_faq(destinations)
             self._seed_about(refresh_images)
+            self._seed_culture(refresh_images)
 
         self.stdout.write(self.style.SUCCESS("Seed tayyor: frontend uchun demo data yaratildi."))
         self.stdout.write(self.style.SUCCESS("Run: python manage.py seed_frontend_data --reset"))
@@ -109,6 +130,8 @@ class Command(BaseCommand):
         RouteGuide.objects.all().delete()
         FAQ.objects.all().delete()
         DestinationImage.objects.all().delete()
+        CultureItem.objects.all().delete()
+        AboutUzbekistanVideo.objects.all().delete()
         AboutUzbekistan.objects.all().delete()
         ImagesHomepage.objects.all().delete()
         Destination.objects.all().delete()
@@ -313,12 +336,57 @@ class Command(BaseCommand):
         about.description_uz = "O'zbekiston turizm testlari uchun demo ma'lumotlar to'plami."
         about.description_ru = "Demo dataset for Uzbekistan tourism frontend tests."
         about.description_en = "Demo dataset for Uzbekistan tourism frontend tests."
-        about.video_url = "https://www.youtube.com/watch?v=aqz-KE-bpKQ"
+        about.video_url = ABOUT_VIDEOS[0][1]
         about.is_active = True
         about.is_featured = True
         about.sort_order = 1
         about.save()
         about.images.set(images)
+
+        valid_orders = []
+        for idx, (title, url) in enumerate(ABOUT_VIDEOS, start=1):
+            AboutUzbekistanVideo.objects.update_or_create(
+                about=about,
+                sort_order=idx,
+                defaults={
+                    "title": title,
+                    "url": url,
+                    "is_active": True,
+                    "is_featured": idx == 1,
+                },
+            )
+            valid_orders.append(idx)
+
+        about.videos.exclude(sort_order__in=valid_orders).delete()
+
+    def _seed_culture(self, refresh_images):
+        active_slugs = []
+        for idx, (title, description) in enumerate(CULTURE_ITEMS, start=1):
+            slug = slugify(title) or f"culture-{idx}"
+            item, _ = CultureItem.objects.update_or_create(
+                slug=slug,
+                defaults={
+                    "title": title,
+                    "title_uz": title,
+                    "title_ru": title,
+                    "title_en": title,
+                    "short_description": description,
+                    "short_description_uz": description,
+                    "short_description_ru": description,
+                    "short_description_en": description,
+                    "detail_url": f"/culture/{slug}/",
+                    "is_active": True,
+                    "is_featured": idx <= 4,
+                    "sort_order": idx,
+                },
+            )
+            if refresh_images or not item.image:
+                image = self._placeholder_image(f"{title}", (900, 1200), f"culture-{slug}")
+                item.image.save(f"culture_{slug}.jpg", image, save=False)
+                item.save(update_fields=["image"])
+            active_slugs.append(slug)
+
+        CultureItem.objects.exclude(slug__in=active_slugs).delete()
 
     def _ensure_destination_images(self, destination, refresh_images):
         changed = False

@@ -7,7 +7,8 @@ from .models import (
     DestinationImage,
     RouteGuide,
     FAQ,
-    AboutUzbekistan
+    AboutUzbekistan,
+    CultureItem,
 )
 
 
@@ -57,3 +58,8 @@ class FAQTranslationOptions(TranslationOptions):
 @register(AboutUzbekistan)
 class AboutUzbekistanTranslationOptions(TranslationOptions):
     fields = ('title', 'description')
+
+
+@register(CultureItem)
+class CultureItemTranslationOptions(TranslationOptions):
+    fields = ('title', 'short_description')

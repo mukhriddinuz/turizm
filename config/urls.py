@@ -5,7 +5,8 @@ from django.conf.urls.static import static
 from django.conf.urls.i18n import i18n_patterns
 from django.views.generic import TemplateView
 from django.views.static import serve
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
+from xml.sax.saxutils import escape
 
 import platform
 import django
@@ -13,6 +14,7 @@ from django.http import JsonResponse
 from django.conf import settings
 from django.db import connections
 from django.db.utils import OperationalError
+from django.utils import timezone
 
 try:
     import psutil
@@ -81,9 +83,72 @@ def api_root(request):
             'api_v1': {
                 'accounts': '/api/v1/accounts/',
                 'main': '/api/v1/',
+                'about': '/api/v1/about/',
+                'culture': '/api/v1/culture/',
+                'search_global': '/api/v1/search/global/',
+                'seo_meta': '/api/v1/seo/meta/',
             }
-        }
+        },
+        'seo_files': {
+            'robots': '/robots.txt',
+            'sitemap': '/sitemap.xml',
+        },
     })
+
+
+def robots_txt(request):
+    sitemap_url = request.build_absolute_uri('/sitemap.xml')
+    content = "\n".join(
+        [
+            "User-agent: *",
+            "Allow: /",
+            "Disallow: /admin/",
+            "Disallow: /api/docs/login/",
+            "Disallow: /api/docs/logout/",
+            f"Sitemap: {sitemap_url}",
+        ]
+    )
+    return HttpResponse(content, content_type='text/plain; charset=utf-8')
+
+
+def sitemap_xml(request):
+    base_url = request.build_absolute_uri('/').rstrip('/')
+    today = timezone.now().date().isoformat()
+    urls = [
+        (f'{base_url}/', today, 'daily', '1.0'),
+        (f'{base_url}/about/', today, 'weekly', '0.9'),
+        (f'{base_url}/search/', today, 'daily', '0.7'),
+    ]
+
+    try:
+        from apps.main.models import Destination, Region, RouteGuide
+
+        for slug in Destination.objects.filter(is_active=True, region__is_active=True).values_list('slug', flat=True):
+            urls.append((f'{base_url}/places/{slug}/', today, 'weekly', '0.8'))
+
+        for slug in Region.objects.filter(is_active=True).values_list('slug', flat=True):
+            urls.append((f'{base_url}/regions/{slug}/', today, 'weekly', '0.7'))
+
+        for route_id in RouteGuide.objects.filter(is_active=True, destination__is_active=True).values_list('id', flat=True):
+            urls.append((f'{base_url}/routes/{route_id}/', today, 'weekly', '0.7'))
+    except Exception:
+        # DB tayyor bo'lmagan muhitlarda ham sitemap endpoint ishlashi uchun.
+        pass
+
+    xml_parts = ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+    for loc, lastmod, changefreq, priority in urls:
+        xml_parts.extend(
+            [
+                "<url>",
+                f"<loc>{escape(loc)}</loc>",
+                f"<lastmod>{lastmod}</lastmod>",
+                f"<changefreq>{changefreq}</changefreq>",
+                f"<priority>{priority}</priority>",
+                "</url>",
+            ]
+        )
+    xml_parts.append("</urlset>")
+    return HttpResponse("".join(xml_parts), content_type='application/xml; charset=utf-8')
 
 
 # Swagger/OpenAPI Schema (drf-yasg)
@@ -158,6 +223,10 @@ def api_root(request):
 urlpatterns = [
     # ==================== ADMIN PANEL ====================
     path(settings.ADMIN_URL, admin.site.urls),
+
+    # ==================== SEO FILES ====================
+    path('robots.txt', robots_txt, name='robots-txt'),
+    path('sitemap.xml', sitemap_xml, name='sitemap-xml'),
     
     # ==================== API ROOT ====================
     path('', api_root, name='api-root'),

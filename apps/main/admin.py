@@ -10,6 +10,7 @@ from .models import (
     FAQ,
     ImagesHomepage,
     AboutUzbekistan,
+    CultureItem,
     SocialMedia
 )
 
@@ -75,6 +76,13 @@ class ImagesHomepageAdmin(admin.ModelAdmin):
 class AboutUzbekistanAdmin(TranslationAdmin):
     list_display = ('title', 'is_active')
     search_fields = ('title',)
+
+
+@admin.register(CultureItem)
+class CultureItemAdmin(TranslationAdmin):
+    list_display = ('title', 'sort_order', 'is_active')
+    search_fields = ('title', 'short_description')
+    list_filter = ('is_active', 'is_featured')
 
 
 @admin.register(SocialMedia)

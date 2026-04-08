@@ -391,6 +391,52 @@ class AboutUzbekistan(UUIDTimeStampedModel, PublishableModel):
         return self.title
 
 
+class AboutUzbekistanVideo(UUIDTimeStampedModel, PublishableModel):
+    about = models.ForeignKey(
+        AboutUzbekistan,
+        verbose_name=_("About bo'limi"),
+        on_delete=models.CASCADE,
+        related_name="videos",
+    )
+    title = models.CharField(_("Video sarlavhasi"), max_length=180, blank=True)
+    url = models.URLField(_("Video havolasi"))
+    thumbnail = models.ImageField(
+        _("Video preview rasmi"),
+        upload_to="homepage/videos/",
+        blank=True,
+        null=True,
+    )
+
+    class Meta:
+        ordering = ["sort_order", "created_at"]
+        verbose_name = _("About video")
+        verbose_name_plural = _("About videolar")
+
+    def __str__(self) -> str:
+        return self.title or self.url
+
+
+class CultureItem(UUIDTimeStampedModel, PublishableModel):
+    title = models.CharField(_("Sarlavha"), max_length=180)
+    slug = models.SlugField(_("Slug"), max_length=180, unique=True, blank=True)
+    short_description = models.CharField(_("Qisqa tavsif"), max_length=255, blank=True)
+    image = models.ImageField(_("Rasm"), upload_to="culture/items/")
+    detail_url = models.URLField(_("Batafsil havola"), blank=True)
+
+    class Meta:
+        ordering = ["sort_order", "created_at"]
+        verbose_name = _("Madaniyat elementi")
+        verbose_name_plural = _("Madaniyat elementlari")
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = build_unique_slug(self, self.title)
+        super().save(*args, **kwargs)
+
+    def __str__(self) -> str:
+        return self.title
+
+
 class SocialMedia(UUIDTimeStampedModel, PublishableModel):
     instagram = models.URLField(_("Instagram"), blank=True)
     facebook = models.URLField(_("Facebook"), blank=True)

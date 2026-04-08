@@ -2,6 +2,8 @@ from rest_framework import serializers
 
 from .models import (
     AboutUzbekistan,
+    AboutUzbekistanVideo,
+    CultureItem,
     Destination,
     DestinationCategory,
     DestinationImage,
@@ -340,11 +342,12 @@ class DestinationMapSerializer(serializers.ModelSerializer):
 class SearchSuggestionSerializer(serializers.ModelSerializer):
     type = serializers.SerializerMethodField()
     name = MultilingualField("name")
+    destination_type_label = serializers.CharField(source="get_destination_type_display", read_only=True)
     region_name = MultilingualField("region.name")
 
     class Meta:
         model = Destination
-        fields = ("type", "id", "name", "slug", "destination_type", "region_name", "cover_image")
+        fields = ("type", "id", "name", "slug", "destination_type", "destination_type_label", "region_name", "cover_image")
 
     def get_type(self, obj):
         return "destination"
@@ -356,14 +359,30 @@ class ImagesHomepageSerializer(serializers.ModelSerializer):
         fields = ("id", "image")
 
 
+class AboutUzbekistanVideoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AboutUzbekistanVideo
+        fields = ("id", "title", "url", "thumbnail", "sort_order")
+
+
 class AboutUzbekistanSerializer(serializers.ModelSerializer):
     title = MultilingualField("title")
     description = MultilingualField("description")
     images = ImagesHomepageSerializer(many=True, read_only=True)
+    videos = AboutUzbekistanVideoSerializer(many=True, read_only=True)
 
     class Meta:
         model = AboutUzbekistan
-        fields = ("title", "description", "video_url", "images")
+        fields = ("title", "description", "video_url", "videos", "images")
+
+
+class CultureItemSerializer(serializers.ModelSerializer):
+    title = MultilingualField("title")
+    short_description = MultilingualField("short_description")
+
+    class Meta:
+        model = CultureItem
+        fields = ("id", "title", "slug", "short_description", "image", "detail_url")
 
 
 class SocialMediaSerializer(serializers.ModelSerializer):
