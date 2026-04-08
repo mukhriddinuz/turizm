@@ -111,8 +111,15 @@ def robots_txt(request):
     return HttpResponse(content, content_type='text/plain; charset=utf-8')
 
 
+def _get_sitemap_base_url(request):
+    frontend_base_url = str(getattr(settings, 'FRONTEND_BASE_URL', '')).strip().rstrip('/')
+    if frontend_base_url:
+        return frontend_base_url
+    return request.build_absolute_uri('/').rstrip('/')
+
+
 def sitemap_xml(request):
-    base_url = request.build_absolute_uri('/').rstrip('/')
+    base_url = _get_sitemap_base_url(request)
     today = timezone.now().date().isoformat()
     urls = [
         (f'{base_url}/', today, 'daily', '1.0'),

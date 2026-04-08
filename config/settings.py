@@ -16,6 +16,7 @@ DEBUG_RAW = str(config('DEBUG', default='true')).strip().lower()
 DEBUG = DEBUG_RAW in {'1', 'true', 't', 'yes', 'y', 'on', 'debug'}
 
 ALLOWED_HOSTS = ['*']
+FRONTEND_BASE_URL = str(config('FRONTEND_BASE_URL', default='https://geotourandijan.uz')).strip().rstrip('/')
 
 # Application definition
 INSTALLED_APPS = [

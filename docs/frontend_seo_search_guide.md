@@ -21,6 +21,8 @@
   - Madaniyat kartochkalari (`results[]`).
 - `GET /robots.txt`
 - `GET /sitemap.xml`
+  - `sitemap.xml` dagi `<loc>` URL lar `FRONTEND_BASE_URL` ga moslanadi.
+  - Misol: `FRONTEND_BASE_URL=https://geotourandijan.uz`
 
 
 ## 2) Frontendda SEO bo'yicha majburiy ishlar
