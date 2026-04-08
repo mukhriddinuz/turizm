@@ -378,6 +378,7 @@ class ImagesHomepage(UUIDTimeStampedModel):
 class AboutUzbekistan(UUIDTimeStampedModel, PublishableModel):
     title = models.CharField(_("Sarlavha"), max_length=180)
     description = models.TextField(_("Tavsif"))
+    video_url = models.URLField(_("Video havolasi"), blank=True)
     images = models.ManyToManyField(ImagesHomepage, verbose_name=_("Rasmlar"), related_name="about_uzbekistan")
 
 
@@ -402,4 +403,4 @@ class SocialMedia(UUIDTimeStampedModel, PublishableModel):
         verbose_name_plural = _("Ijtimoiy tarmoqlar")
 
     def __str__(self) -> str:
-        return "Ijtimoiy tarmoq havolalari"
+        return "Ijtimoiy tarmoq havolalari"

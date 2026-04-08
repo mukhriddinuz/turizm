@@ -213,6 +213,29 @@ def apply_route_filters(queryset, params):
     return queryset.distinct()
 
 
+def get_about_uzbekistan_data(request):
+    about_obj = AboutUzbekistan.objects.filter(is_active=True).prefetch_related("images").order_by(
+        "sort_order", "created_at"
+    ).first()
+    if about_obj:
+        return AboutUzbekistanSerializer(about_obj, context={"request": request}).data
+
+    return {
+        "title": {
+            "uz": "O'zbekiston haqida",
+            "ru": "Об Узбекистане",
+            "en": "About Uzbekistan",
+        },
+        "description": {
+            "uz": "O'zbekiston qadimiy shaharlar, ziyoratgohlar va madaniy boyliklarga egadir",
+            "ru": "Узбекистан обладает древними городами, святынями и богатым культурным наследием.",
+            "en": "Uzbekistan has ancient cities, shrines, and rich cultural heritage.",
+        },
+        "video_url": "",
+        "images": [],
+    }
+
+
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 12
     page_size_query_param = "page_size"
@@ -342,22 +365,7 @@ class HomeAPIView(APIView):
             except ValueError:
                 nearby_places = destination_qs.order_by("-is_featured", "-average_rating", "name")[:6]
 
-        about_obj = AboutUzbekistan.objects.filter(is_active=True).prefetch_related("images").order_by(
-            "sort_order", "created_at"
-        ).first()
-        about_data = AboutUzbekistanSerializer(about_obj, context={"request": request}).data if about_obj else {
-            "title": {
-                "uz": "O'zbekiston haqida",
-                "ru": "Об Узбекистане",
-                "en": "About Uzbekistan",
-            },
-            "description": {
-                "uz": "O'zbekiston qadimiy shaharlar, ziyoratgohlar va madaniy boyliklarga egadir",
-                "ru": "Узбекистан обладает древними городами, святынями и богатым культурным наследием.",
-                "en": "Uzbekistan has ancient cities, shrines, and rich cultural heritage.",
-            },
-            "images": [],
-        }
+        about_data = get_about_uzbekistan_data(request)
 
         banner_data = {
             "title": {
@@ -405,6 +413,23 @@ class HomeAPIView(APIView):
                 "social_media": social_media_data,
             }
         )
+
+
+class AboutAPIView(APIView):
+    """
+    About bo'limi uchun alohida endpoint.
+    """
+
+    permission_classes = [AllowAny]
+    schema = SwaggerAutoSchema(
+        tags=["About"],
+        operation_id_base="about",
+        summary="O'zbekiston haqida",
+        description="About bo'limi uchun title, description, video va rasmlar.",
+    )
+
+    def get(self, request, *args, **kwargs):
+        return Response({"about_uzbekistan": get_about_uzbekistan_data(request)})
 
 
 class DestinationListAPIView(DestinationQuerysetMixin, generics.ListAPIView):

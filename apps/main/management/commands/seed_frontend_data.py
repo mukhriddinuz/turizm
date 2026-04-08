@@ -313,6 +313,7 @@ class Command(BaseCommand):
         about.description_uz = "O'zbekiston turizm testlari uchun demo ma'lumotlar to'plami."
         about.description_ru = "Demo dataset for Uzbekistan tourism frontend tests."
         about.description_en = "Demo dataset for Uzbekistan tourism frontend tests."
+        about.video_url = "https://www.youtube.com/watch?v=aqz-KE-bpKQ"
         about.is_active = True
         about.is_featured = True
         about.sort_order = 1

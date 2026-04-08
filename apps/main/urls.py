@@ -1,5 +1,6 @@
 from django.urls import path
 from .views import (
+    AboutAPIView,
     DestinationDetailAPIView,
     DestinationListAPIView,
     DestinationRoutesAPIView,
@@ -20,6 +21,7 @@ app_name = 'main'
 
 urlpatterns = [
     path('home/', HomeAPIView.as_view(), name='home'),
+    path('about/', AboutAPIView.as_view(), name='about'),
     path('places/', DestinationListAPIView.as_view(), name='place-list'),
     path('places/nearby/', NearbyPlacesAPIView.as_view(), name='places-nearby'),
     path('places/<slug:slug>/', DestinationDetailAPIView.as_view(), name='place-detail'),

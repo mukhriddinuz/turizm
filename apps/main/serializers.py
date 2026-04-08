@@ -363,7 +363,7 @@ class AboutUzbekistanSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AboutUzbekistan
-        fields = ("title", "description", "images")
+        fields = ("title", "description", "video_url", "images")
 
 
 class SocialMediaSerializer(serializers.ModelSerializer):
