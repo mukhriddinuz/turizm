@@ -1,10 +1,14 @@
 import uuid
+import os
+from io import BytesIO
 from decimal import Decimal
 
+from django.core.files.base import ContentFile
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
+from PIL import Image
 
 
 def build_unique_slug(instance, value: str, field_name: str = "slug") -> str:
@@ -19,6 +23,45 @@ def build_unique_slug(instance, value: str, field_name: str = "slug") -> str:
         counter += 1
 
     return slug
+
+
+def convert_image_field_to_webp(instance, field_name: str, quality: int = 85) -> None:
+    image_field = getattr(instance, field_name, None)
+    if not image_field or not getattr(image_field, "name", None):
+        return
+
+    current_name = image_field.name
+    if current_name.lower().endswith(".webp"):
+        return
+
+    image_field.open("rb")
+    try:
+        with Image.open(image_field) as image:
+            if image.mode not in ("RGB", "RGBA"):
+                image = image.convert("RGBA")
+
+            output_buffer = BytesIO()
+            image.save(output_buffer, format="WEBP", quality=quality, optimize=True)
+            output_buffer.seek(0)
+
+        filename = os.path.splitext(os.path.basename(current_name))[0] or field_name
+        new_name = f"{filename}.webp"
+        image_field.save(new_name, ContentFile(output_buffer.read()), save=False)
+    finally:
+        image_field.close()
+
+
+class WebPImageMixin(models.Model):
+    WEBP_IMAGE_FIELDS = ()
+    WEBP_QUALITY = 85
+
+    class Meta:
+        abstract = True
+
+    def save(self, *args, **kwargs):
+        for field_name in self.WEBP_IMAGE_FIELDS:
+            convert_image_field_to_webp(self, field_name, quality=self.WEBP_QUALITY)
+        super().save(*args, **kwargs)
 
 
 class UUIDTimeStampedModel(models.Model):
@@ -132,7 +175,7 @@ class DestinationCategory(UUIDTimeStampedModel, PublishableModel):
 #         return self.name
 
 
-class Destination(UUIDTimeStampedModel, PublishableModel):
+class Destination(WebPImageMixin, UUIDTimeStampedModel, PublishableModel):
     class DestinationType(models.TextChoices):
         TOURIST = "tourist", _("Turistik joy")
         PILGRIMAGE = "pilgrimage", _("Ziyoratgoh")
@@ -230,6 +273,7 @@ class Destination(UUIDTimeStampedModel, PublishableModel):
             models.Index(fields=["slug"]),
             models.Index(fields=["region", "destination_type", "is_active", "is_featured"]),
         ]
+    WEBP_IMAGE_FIELDS = ("hero_image", "cover_image")
 
     def save(self, *args, **kwargs):
         if not self.slug:
@@ -240,7 +284,7 @@ class Destination(UUIDTimeStampedModel, PublishableModel):
         return self.name
 
 
-class DestinationImage(UUIDTimeStampedModel):
+class DestinationImage(WebPImageMixin, UUIDTimeStampedModel):
     destination = models.ForeignKey(
         Destination,
         verbose_name=_("Joy"),
@@ -257,6 +301,7 @@ class DestinationImage(UUIDTimeStampedModel):
         ordering = ["sort_order", "created_at"]
         verbose_name = _("Joy rasmi")
         verbose_name_plural = _("Joy rasmlari")
+    WEBP_IMAGE_FIELDS = ("image",)
 
     def __str__(self) -> str:
         return f"{self.destination.name} image"
@@ -363,7 +408,7 @@ class FAQ(UUIDTimeStampedModel, PublishableModel):
         return self.question
 
 
-class ImagesHomepage(UUIDTimeStampedModel):
+class ImagesHomepage(WebPImageMixin, UUIDTimeStampedModel):
     image = models.ImageField(_("Rasm"), upload_to="homepage/images/")
     
 
@@ -371,6 +416,7 @@ class ImagesHomepage(UUIDTimeStampedModel):
         ordering = ["created_at"]
         verbose_name = _("Bosh sahifa rasmi")
         verbose_name_plural = _("Bosh sahifa rasmlari")
+    WEBP_IMAGE_FIELDS = ("image",)
 
     def __str__(self) -> str:
         return self.image.name
@@ -391,7 +437,7 @@ class AboutUzbekistan(UUIDTimeStampedModel, PublishableModel):
         return self.title
 
 
-class AboutUzbekistanVideo(UUIDTimeStampedModel, PublishableModel):
+class AboutUzbekistanVideo(WebPImageMixin, UUIDTimeStampedModel, PublishableModel):
     about = models.ForeignKey(
         AboutUzbekistan,
         verbose_name=_("About bo'limi"),
@@ -411,12 +457,13 @@ class AboutUzbekistanVideo(UUIDTimeStampedModel, PublishableModel):
         ordering = ["sort_order", "created_at"]
         verbose_name = _("About video")
         verbose_name_plural = _("About videolar")
+    WEBP_IMAGE_FIELDS = ("thumbnail",)
 
     def __str__(self) -> str:
         return self.title or self.url
 
 
-class CultureItem(UUIDTimeStampedModel, PublishableModel):
+class CultureItem(WebPImageMixin, UUIDTimeStampedModel, PublishableModel):
     title = models.CharField(_("Sarlavha"), max_length=180)
     slug = models.SlugField(_("Slug"), max_length=180, unique=True, blank=True)
     short_description = models.CharField(_("Qisqa tavsif"), max_length=255, blank=True)
@@ -427,6 +474,7 @@ class CultureItem(UUIDTimeStampedModel, PublishableModel):
         ordering = ["sort_order", "created_at"]
         verbose_name = _("Madaniyat elementi")
         verbose_name_plural = _("Madaniyat elementlari")
+    WEBP_IMAGE_FIELDS = ("image",)
 
     def save(self, *args, **kwargs):
         if not self.slug:
