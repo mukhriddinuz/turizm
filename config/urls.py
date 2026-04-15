@@ -324,7 +324,7 @@ else:
 # handler500 = 'apps.core.views.server_error'         # 500 - Internal Server Error
 
 # ==================== ADMIN SITE CUSTOMIZATION ====================
-admin.site.site_header = "Django REST API - Admin Panel"
-admin.site.site_title = "Django REST API Admin"
+admin.site.site_header = "Turizm boshqaruv paneli"
+admin.site.site_title = "Turizm admin paneli"
 admin.site.index_title = "Boshqaruv paneli"
 admin.site.site_url = "/api/docs/"  # Admin paneldagi "View site" tugmasi

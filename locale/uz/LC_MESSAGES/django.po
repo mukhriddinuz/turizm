@@ -1,0 +1,70 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: turizm\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-04-15 11:00+0500\n"
+"PO-Revision-Date: 2026-04-15 11:00+0500\n"
+"Last-Translator: Codex\n"
+"Language-Team: Uzbek\n"
+"Language: uz\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Dashboard"
+msgstr "Boshqaruv paneli"
+
+msgid "Home"
+msgstr "Bosh sahifa"
+
+msgid "Recent actions"
+msgstr "So'nggi amallar"
+
+msgid "Add"
+msgstr "Qo'shish"
+
+msgid "Change"
+msgstr "O'zgartirish"
+
+msgid "Delete"
+msgstr "O'chirish"
+
+msgid "View site"
+msgstr "Saytni ko'rish"
+
+msgid "Log out"
+msgstr "Chiqish"
+
+msgid "Change password"
+msgstr "Parolni o'zgartirish"
+
+msgid "Users and groups"
+msgstr "Foydalanuvchilar va guruhlar"
+
+msgid "Authentication and Authorization"
+msgstr "Autentifikatsiya va ruxsatlar"
+
+msgid "Main"
+msgstr "Asosiy bo'lim"
+
+msgid "Token Blacklist"
+msgstr "Token qora ro'yxati"
+
+msgid "Blacklisted tokens"
+msgstr "Qora ro'yxatdagi tokenlar"
+
+msgid "Outstanding tokens"
+msgstr "Faol tokenlar"
+
+msgid "Endpoint Permissions"
+msgstr "Endpoint ruxsatlari"
+
+msgid "Added."
+msgstr "Qo'shildi."
+
+msgid "Changed."
+msgstr "O'zgartirildi."
+
+msgid "Are you sure?"
+msgstr "Ishonchingiz komilmi?"
