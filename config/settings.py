@@ -21,6 +21,7 @@ FRONTEND_BASE_URL = str(config('FRONTEND_BASE_URL', default='https://geotourandi
 # Application definition
 INSTALLED_APPS = [
     'modeltranslation',
+    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -43,6 +44,16 @@ INSTALLED_APPS = [
     'apps.main',
     'apps.api',
 ]
+
+JAZZMIN_SETTINGS = {
+    'site_title': 'Turizm Admin',
+    'site_header': 'Turizm Boshqaruv Paneli',
+    'site_brand': 'Turizm Admin',
+    'welcome_sign': 'Turizm boshqaruv paneliga xush kelibsiz',
+    'site_url': '/api/docs/',
+    'show_sidebar': True,
+    'navigation_expanded': True,
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
