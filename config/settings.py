@@ -384,6 +384,10 @@ SESSION_SAVE_EVERY_REQUEST = False
 # Admin Configuration
 ADMIN_URL = config('ADMIN_URL', default='admin/')
 
+# Telegram Bot Configuration
+TELEGRAM_BOT_TOKEN = str(config('TELEGRAM_BOT_TOKEN', default='8686534583:AAEMCw8N2VLHydo1HtfttmIFCCReVyPG1lA')).strip()
+TELEGRAM_BOT_DEFAULT_LANG = str(config('TELEGRAM_BOT_DEFAULT_LANG', default='uz')).strip().lower()
+
 # Development Settings
 if DEBUG:
     INSTALLED_APPS += ['debug_toolbar']
