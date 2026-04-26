@@ -7,6 +7,7 @@ from .models import (
     DestinationImage,
     RouteGuide,
     FAQ,
+    HomeBanner,
     AboutUzbekistan,
     CultureItem,
 )
@@ -53,6 +54,11 @@ class RouteGuideTranslationOptions(TranslationOptions):
 @register(FAQ)
 class FAQTranslationOptions(TranslationOptions):
     fields = ('question', 'answer')
+
+
+@register(HomeBanner)
+class HomeBannerTranslationOptions(TranslationOptions):
+    fields = ('title', 'subtitle', 'cta_primary_label', 'cta_secondary_label')
 
 
 @register(AboutUzbekistan)

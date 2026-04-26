@@ -9,6 +9,7 @@ from .models import (
     RouteGuide,
     FAQ,
     ImagesHomepage,
+    HomeBanner,
     AboutUzbekistan,
     CultureItem,
     SocialMedia
@@ -70,6 +71,13 @@ class FAQAdmin(TranslationAdmin):
 @admin.register(ImagesHomepage)
 class ImagesHomepageAdmin(admin.ModelAdmin):
     pass
+
+
+@admin.register(HomeBanner)
+class HomeBannerAdmin(TranslationAdmin):
+    list_display = ("title", "is_featured", "sort_order", "is_active")
+    list_filter = ("is_active", "is_featured")
+    search_fields = ("title", "subtitle", "cta_primary_label", "cta_secondary_label")
 
 
 @admin.register(AboutUzbekistan)

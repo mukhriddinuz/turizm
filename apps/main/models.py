@@ -421,6 +421,29 @@ class ImagesHomepage(WebPImageMixin, UUIDTimeStampedModel):
     def __str__(self) -> str:
         return self.image.name
 
+
+class HomeBanner(WebPImageMixin, UUIDTimeStampedModel, PublishableModel):
+    title = models.CharField(_("Sarlavha"), max_length=220)
+    subtitle = models.CharField(_("Tagline"), max_length=300, blank=True)
+    cta_primary_label = models.CharField(_("Asosiy tugma matni"), max_length=80, default="Joylarni ko'rish")
+    cta_primary_url = models.CharField(_("Asosiy tugma havolasi"), max_length=255, default="/places/")
+    cta_secondary_label = models.CharField(_("Ikkinchi tugma matni"), max_length=80, default="Xaritada ko'rish")
+    cta_secondary_url = models.CharField(_("Ikkinchi tugma havolasi"), max_length=255, default="/map/")
+    featured_image = models.ImageField(_("Banner rasmi"), upload_to="homepage/banner/", blank=True, null=True)
+    media_file = models.FileField(_("Banner media fayli"), upload_to="homepage/banner/media/", blank=True, null=True)
+    media_url = models.URLField(_("Banner media havolasi"), blank=True)
+
+    class Meta:
+        ordering = ["-is_featured", "sort_order", "created_at"]
+        verbose_name = _("Bosh sahifa banneri")
+        verbose_name_plural = _("Bosh sahifa bannerlari")
+
+    WEBP_IMAGE_FIELDS = ("featured_image",)
+
+    def __str__(self) -> str:
+        return self.title
+
+
 class AboutUzbekistan(UUIDTimeStampedModel, PublishableModel):
     title = models.CharField(_("Sarlavha"), max_length=180)
     description = models.TextField(_("Tavsif"))

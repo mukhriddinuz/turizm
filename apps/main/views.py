@@ -12,7 +12,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import AboutUzbekistan, AboutUzbekistanVideo, CultureItem, Destination, DestinationCategory, FAQ, Region, RouteGuide, SocialMedia
+from .models import AboutUzbekistan, AboutUzbekistanVideo, CultureItem, Destination, DestinationCategory, FAQ, HomeBanner, Region, RouteGuide, SocialMedia
 from .serializers import (
     AboutUzbekistanSerializer,
     CultureItemSerializer,
@@ -366,6 +366,69 @@ def get_about_uzbekistan_data(request):
     }
 
 
+def _localized_map(obj, field_name: str):
+    return {
+        "uz": str(getattr(obj, f"{field_name}_uz", None) or getattr(obj, field_name, "") or ""),
+        "ru": str(getattr(obj, f"{field_name}_ru", None) or getattr(obj, field_name, "") or ""),
+        "en": str(getattr(obj, f"{field_name}_en", None) or getattr(obj, field_name, "") or ""),
+    }
+
+
+def get_home_banner_data(request):
+    fallback_image_url = request.build_absolute_uri("/media/homepage/banner.jpg")
+    default_payload = {
+        "title": {
+            "uz": "O'zbekistondagi eng mashhur turistik joylar va ziyoratgohlar",
+            "ru": "The most popular tourist places and shrines in Uzbekistan",
+            "en": "The most popular tourist spots and shrines in Uzbekistan",
+        },
+        "subtitle": {
+            "uz": "Hududlar bo'yicha izlang, joy haqida o'qing va yo'nalishni toping.",
+            "ru": "Search by regions, read about places and find routes.",
+            "en": "Search by regions, read about the place and find the route.",
+        },
+        "featured_image": fallback_image_url,
+        "featured_media": "",
+        "cta_primary": {
+            "label": {"uz": "Joylarni ko'rish", "ru": "View places", "en": "View places"},
+            "url": "/places/",
+        },
+        "cta_secondary": {
+            "label": {"uz": "Xaritada ko'rish", "ru": "View on map", "en": "View on map"},
+            "url": "/map/",
+        },
+    }
+
+    banner_obj = HomeBanner.objects.filter(is_active=True).order_by("-is_featured", "sort_order", "created_at").first()
+    if not banner_obj:
+        return default_payload
+
+    image_url = fallback_image_url
+    if banner_obj.featured_image:
+        image_url = request.build_absolute_uri(banner_obj.featured_image.url)
+
+    media_value = ""
+    if banner_obj.media_file:
+        media_value = request.build_absolute_uri(banner_obj.media_file.url)
+    elif banner_obj.media_url:
+        media_value = banner_obj.media_url
+
+    return {
+        "title": _localized_map(banner_obj, "title"),
+        "subtitle": _localized_map(banner_obj, "subtitle"),
+        "featured_image": image_url,
+        "featured_media": media_value,
+        "cta_primary": {
+            "label": _localized_map(banner_obj, "cta_primary_label"),
+            "url": banner_obj.cta_primary_url or "/places/",
+        },
+        "cta_secondary": {
+            "label": _localized_map(banner_obj, "cta_secondary_label"),
+            "url": banner_obj.cta_secondary_url or "/map/",
+        },
+    }
+
+
 def get_culture_items_data(request, limit: int = 8):
     queryset = CultureItem.objects.filter(is_active=True).order_by(
         "-is_featured",
@@ -507,28 +570,7 @@ class HomeAPIView(APIView):
                 nearby_places = destination_qs.order_by("-is_featured", "-average_rating", "name")[:6]
 
         about_data = get_about_uzbekistan_data(request)
-
-        banner_data = {
-            "title": {
-                "uz": "O'zbekistondagi eng mashhur turistik joylar va ziyoratgohlar",
-                "ru": "Самые популярные туристические места и святыни Узбекистана",
-                "en": "The most popular tourist spots and shrines in Uzbekistan",
-            },
-            "subtitle": {
-                "uz": "Hududlar bo'yicha izlang, joy haqida o'qing va yo'nalishni toping.",
-                "ru": "Ищите по регионам, читайте о месте и находите маршрут.",
-                "en": "Search by regions, read about the place and find the route.",
-            },
-            "featured_image": request.build_absolute_uri("/media/homepage/banner.jpg"),
-            "cta_primary": {
-                "label": {"uz": "Joylarni ko'rish", "ru": "Посмотреть места", "en": "View places"},
-                "url": "/places/",
-            },
-            "cta_secondary": {
-                "label": {"uz": "Xaritada ko'rish", "ru": "Посмотреть на карте", "en": "View on map"},
-                "url": "/map/",
-            },
-        }
+        banner_data = get_home_banner_data(request)
 
         stats_data = {
             "regions_count": Region.objects.filter(is_active=True).count(),
@@ -1165,7 +1207,8 @@ class SEOMetaAPIView(APIView):
             lang = "uz"
 
         base_url = request.build_absolute_uri("/").rstrip("/")
-        default_image = request.build_absolute_uri("/media/homepage/banner.jpg")
+        banner_data = get_home_banner_data(request)
+        default_image = banner_data.get("featured_image") or request.build_absolute_uri("/media/homepage/banner.jpg")
 
         if page_type == "home":
             title = "UzTourism - O'zbekiston bo'ylab sayohat va ziyorat"
@@ -1494,3 +1537,4 @@ class SocialMediaAPIView(APIView):
             serializer = SocialMediaSerializer(social_media_obj)
             return Response(serializer.data)
         return Response({})
+
