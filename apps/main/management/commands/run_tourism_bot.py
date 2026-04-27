@@ -15,7 +15,7 @@ try:
     from aiogram.client.default import DefaultBotProperties
     from aiogram.enums import ParseMode
     from aiogram.filters import Command as TgCommand, CommandStart
-    from aiogram.types import BufferedInputFile, InlineKeyboardButton, KeyboardButton, Message
+    from aiogram.types import BufferedInputFile, CallbackQuery, InlineKeyboardButton, KeyboardButton, Message
     from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 except ImportError:  # pragma: no cover
     Bot = None
@@ -32,7 +32,92 @@ MENU_RANDOM = "Random joy"
 MENU_NEARBY = "Yaqin joylar"
 MENU_SEND_LOCATION = "Lokatsiyani yuborish"
 MENU_BACK = "Menyuga qaytish"
+MENU_CHANGE_LANG = "Tilni almashtirish / Language"
 LOCATION_PROMPT = "Yaqin joylarni topish uchun pastdagi tugmadan lokatsiyangizni yuboring."
+SUPPORTED_LANGS = ("uz", "ru", "en")
+
+TEXTS = {
+    "welcome": {
+        "uz": "Andijon tourism botga xush kelibsiz.",
+        "ru": "Добро пожаловать в Andijon tourism bot.",
+        "en": "Welcome to Andijon tourism bot.",
+    },
+    "help": {
+        "uz": "/start - menyu\n/help - yordam\n/lang - tilni almashtirish\n/location - lokatsiya yuborish bo'limi\nBo'limlar: Joylar, Ziyoratgohlar, Dam olish, Muzeylar, Ovqatlanish, Hunarmandchilik",
+        "ru": "/start - menu\n/help - help\n/lang - change language\n/location - send location section\nSections: Places, Pilgrimage, Recreation, Museums, Food, Crafts",
+        "en": "/start - menu\n/help - help\n/lang - change language\n/location - send location section\nSections: Places, Pilgrimage, Recreation, Museums, Food, Crafts",
+    },
+    "ask_location": {
+        "uz": "Yaqin joylarni topish uchun pastdagi tugmadan lokatsiyangizni yuboring.",
+        "ru": "Чтобы найти ближайшие места, отправьте геолокацию кнопкой ниже.",
+        "en": "To find nearby places, send your location using the button below.",
+    },
+    "nearest_title": {
+        "uz": "Sizga eng yaqin joylar:",
+        "ru": "Ближайшие места:",
+        "en": "Nearest places:",
+    },
+    "no_coords": {
+        "uz": "Koordinata bilan joy topilmadi.",
+        "ru": "Места с координатами не найдены.",
+        "en": "No places with coordinates found.",
+    },
+    "no_places": {
+        "uz": "Joylar topilmadi.",
+        "ru": "Места не найдены.",
+        "en": "No places found.",
+    },
+    "no_pilgrimage": {
+        "uz": "Ziyoratgohlar topilmadi.",
+        "ru": "Паломнические места не найдены.",
+        "en": "No pilgrimage places found.",
+    },
+    "no_random": {
+        "uz": "Hozircha joy topilmadi.",
+        "ru": "Пока нет доступных мест.",
+        "en": "No places available yet.",
+    },
+    "no_recreation": {
+        "uz": "Dam olish maskanlari topilmadi.",
+        "ru": "Места отдыха не найдены.",
+        "en": "No recreation places found.",
+    },
+    "no_museums": {
+        "uz": "Muzeylar topilmadi.",
+        "ru": "Музеи не найдены.",
+        "en": "No museums found.",
+    },
+    "no_food": {
+        "uz": "Ovqatlanish joylari topilmadi.",
+        "ru": "Места питания не найдены.",
+        "en": "No food places found.",
+    },
+    "no_crafts": {
+        "uz": "Hunarmandchilik bo'limida ma'lumot topilmadi.",
+        "ru": "В разделе ремесел данных нет.",
+        "en": "No crafts data found.",
+    },
+    "menu_title": {
+        "uz": "Asosiy menyu.",
+        "ru": "Главное меню.",
+        "en": "Main menu.",
+    },
+    "pick_lang": {
+        "uz": "Tilni tanlang:",
+        "ru": "Выберите язык:",
+        "en": "Choose language:",
+    },
+    "lang_saved": {
+        "uz": "Til yangilandi.",
+        "ru": "Язык обновлен.",
+        "en": "Language updated.",
+    },
+}
+
+
+def tr(lang: str, key: str) -> str:
+    values = TEXTS.get(key, {})
+    return values.get(lang) or values.get("uz", "")
 
 
 def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -54,7 +139,8 @@ def build_main_menu():
     kb.button(text=MENU_CRAFTS)
     kb.button(text=MENU_RANDOM)
     kb.button(text=MENU_NEARBY)
-    kb.adjust(2, 2, 2, 2)
+    kb.button(text=MENU_CHANGE_LANG)
+    kb.adjust(2, 2, 2, 2, 1)
     return kb.as_markup(resize_keyboard=True)
 
 
@@ -69,6 +155,16 @@ def build_place_inline(map_url: str | None):
     kb = InlineKeyboardBuilder()
     if map_url:
         kb.row(InlineKeyboardButton(text="Xaritada ochish", url=map_url))
+    return kb.as_markup()
+
+
+def build_language_inline():
+    kb = InlineKeyboardBuilder()
+    kb.row(
+        InlineKeyboardButton(text="O'zbekcha", callback_data="lang:uz"),
+        InlineKeyboardButton(text="Русский", callback_data="lang:ru"),
+        InlineKeyboardButton(text="English", callback_data="lang:en"),
+    )
     return kb.as_markup()
 
 
@@ -241,26 +337,51 @@ async def send_culture_item(message: Message, item: CultureItem):
 
 
 def register_handlers(dp: Dispatcher):
+    default_lang = (getattr(settings, "TELEGRAM_BOT_DEFAULT_LANG", "uz") or "uz").strip().lower()
+    if default_lang not in SUPPORTED_LANGS:
+        default_lang = "uz"
+    user_langs: dict[int, str] = {}
+
+    def lang_of(message: Message) -> str:
+        user_id = message.from_user.id if message.from_user else 0
+        return user_langs.get(user_id, default_lang)
+
     @dp.message(CommandStart())
     async def start_handler(message: Message):
-        await message.answer("Andijon tourism botga xush kelibsiz.", reply_markup=build_main_menu())
+        lang = lang_of(message)
+        await message.answer(tr(lang, "welcome"), reply_markup=build_main_menu())
 
     @dp.message(TgCommand("help"))
     async def help_handler(message: Message):
-        await message.answer(
-            "/start - menyu\n/help - yordam\n/location - lokatsiya yuborish bo'limi\n"
-            "Bo'limlar: Joylar, Ziyoratgohlar, Dam olish, Muzeylar, Ovqatlanish, Hunarmandchilik"
-        )
+        lang = lang_of(message)
+        await message.answer(tr(lang, "help"))
+
+    @dp.message(TgCommand("lang"))
+    async def lang_handler(message: Message):
+        lang = lang_of(message)
+        await message.answer(tr(lang, "pick_lang"), reply_markup=build_language_inline())
+
+    @dp.callback_query(F.data.startswith("lang:"))
+    async def lang_callback_handler(callback: CallbackQuery):
+        selected = (callback.data or "").split(":", maxsplit=1)[-1]
+        if selected not in SUPPORTED_LANGS:
+            selected = default_lang
+
+        user_langs[callback.from_user.id] = selected
+        await callback.message.answer(tr(selected, "lang_saved"), reply_markup=build_main_menu())
+        await callback.answer()
 
     @dp.message(TgCommand("location"))
     async def location_handler(message: Message):
-        await message.answer(LOCATION_PROMPT, reply_markup=build_location_menu())
+        lang = lang_of(message)
+        await message.answer(tr(lang, "ask_location"), reply_markup=build_location_menu())
 
     @dp.message(F.location)
     async def location_payload_handler(message: Message):
+        lang = lang_of(message)
         places = await fetch_places_with_coords()
         if not places:
-            await message.answer("Koordinata bilan joy topilmadi.")
+            await message.answer(tr(lang, "no_coords"))
             return
 
         user_lat = float(message.location.latitude)
@@ -271,83 +392,98 @@ def register_handlers(dp: Dispatcher):
             ranked.append((dist, place))
         ranked.sort(key=lambda row: row[0])
 
-        await message.answer("Sizga eng yaqin joylar:")
+        await message.answer(tr(lang, "nearest_title"))
         for dist, place in ranked[:5]:
             await send_destination(message, place, distance_km=dist)
 
     @dp.message(F.text == MENU_PLACES)
     async def places_handler(message: Message):
+        lang = lang_of(message)
         places = await fetch_places(kind="tourist", limit=6)
         if not places:
-            await message.answer("Joylar topilmadi.")
+            await message.answer(tr(lang, "no_places"))
             return
         for place in places:
             await send_destination(message, place)
 
     @dp.message(F.text == MENU_PILGRIMAGE)
     async def pilgrimage_handler(message: Message):
+        lang = lang_of(message)
         places = await fetch_places(kind="pilgrimage", limit=6)
         if not places:
-            await message.answer("Ziyoratgohlar topilmadi.")
+            await message.answer(tr(lang, "no_pilgrimage"))
             return
         for place in places:
             await send_destination(message, place)
 
     @dp.message(F.text == MENU_RANDOM)
     async def random_handler(message: Message):
+        lang = lang_of(message)
         place = await fetch_random_place()
         if not place:
-            await message.answer("Hozircha joy topilmadi.")
+            await message.answer(tr(lang, "no_random"))
             return
         await send_destination(message, place)
 
     @dp.message(F.text == MENU_RECREATION)
     async def recreation_handler(message: Message):
+        lang = lang_of(message)
         places = await fetch_places(kind="recreation", limit=6)
         if not places:
-            await message.answer("Dam olish maskanlari topilmadi.")
+            await message.answer(tr(lang, "no_recreation"))
             return
         for place in places:
             await send_destination(message, place)
 
     @dp.message(F.text == MENU_MUSEUMS)
     async def museums_handler(message: Message):
+        lang = lang_of(message)
         places = await fetch_places(kind="museums", limit=6)
         if not places:
-            await message.answer("Muzeylar topilmadi.")
+            await message.answer(tr(lang, "no_museums"))
             return
         for place in places:
             await send_destination(message, place)
 
     @dp.message(F.text == MENU_FOOD)
     async def food_handler(message: Message):
+        lang = lang_of(message)
         places = await fetch_places(kind="food", limit=6)
         if not places:
-            await message.answer("Ovqatlanish joylari topilmadi.")
+            await message.answer(tr(lang, "no_food"))
             return
         for place in places:
             await send_destination(message, place)
 
     @dp.message(F.text == MENU_CRAFTS)
     async def crafts_handler(message: Message):
+        lang = lang_of(message)
         items = await fetch_culture_items(limit=8)
         if not items:
-            await message.answer("Hunarmandchilik bo'limida ma'lumot topilmadi.")
+            await message.answer(tr(lang, "no_crafts"))
             return
         for item in items:
             await send_culture_item(message, item)
 
     @dp.message(F.text == MENU_NEARBY)
     async def nearby_menu_handler(message: Message):
-        await message.answer(LOCATION_PROMPT, reply_markup=build_location_menu())
+        lang = lang_of(message)
+        await message.answer(tr(lang, "ask_location"), reply_markup=build_location_menu())
 
     @dp.message(F.text == MENU_SEND_LOCATION)
     async def send_location_handler(message: Message):
-        await message.answer(LOCATION_PROMPT, reply_markup=build_location_menu())
+        lang = lang_of(message)
+        await message.answer(tr(lang, "ask_location"), reply_markup=build_location_menu())
+
+    @dp.message(F.text == MENU_CHANGE_LANG)
+    async def menu_change_lang_handler(message: Message):
+        lang = lang_of(message)
+        await message.answer(tr(lang, "pick_lang"), reply_markup=build_language_inline())
 
     @dp.message(F.text == MENU_BACK)
     async def back_menu_handler(message: Message):
-        await message.answer("Asosiy menyu.", reply_markup=build_main_menu())
+        lang = lang_of(message)
+        await message.answer(tr(lang, "menu_title"), reply_markup=build_main_menu())
 
 
 async def start_bot(token: str):
