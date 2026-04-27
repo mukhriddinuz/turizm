@@ -410,8 +410,6 @@ def get_home_banner_data(request):
     media_value = ""
     if banner_obj.media_file:
         media_value = request.build_absolute_uri(banner_obj.media_file.url)
-    elif banner_obj.media_url:
-        media_value = banner_obj.media_url
 
     return {
         "title": _localized_map(banner_obj, "title"),

@@ -78,6 +78,7 @@ class HomeBannerAdmin(TranslationAdmin):
     list_display = ("title", "is_featured", "sort_order", "is_active")
     list_filter = ("is_active", "is_featured")
     search_fields = ("title", "subtitle", "cta_primary_label", "cta_secondary_label")
+    exclude = ("media_url",)
 
 
 @admin.register(AboutUzbekistan)
