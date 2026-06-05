@@ -6,6 +6,7 @@ import random
 from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
+from django.db import close_old_connections
 from django.db.models import Q
 
 from apps.main.models import CultureItem, Destination
@@ -22,17 +23,17 @@ except ImportError:  # pragma: no cover
     Dispatcher = None
 
 
-MENU_PLACES = "Joylar"
-MENU_PILGRIMAGE = "Ziyoratgohlar"
-MENU_RECREATION = "Dam olish maskanlari"
-MENU_MUSEUMS = "Muzeylar"
-MENU_FOOD = "Ovqatlanish"
-MENU_CRAFTS = "Hunarmandchilik"
-MENU_RANDOM = "Random joy"
-MENU_NEARBY = "Yaqin joylar"
-MENU_SEND_LOCATION = "Lokatsiyani yuborish"
-MENU_BACK = "Menyuga qaytish"
-MENU_CHANGE_LANG = "Tilni almashtirish / Language"
+MENU_PLACES = "📌 Joylar"
+MENU_PILGRIMAGE = "🕌 Ziyoratgohlar"
+MENU_RECREATION = "🏖️ Dam olish maskanlari"
+MENU_MUSEUMS = "🏛️ Muzeylar"
+MENU_FOOD = "🍽️ Ovqatlanish"
+MENU_CRAFTS = "🧵 Hunarmandchilik"
+MENU_RANDOM = "🎲 Random joy"
+MENU_NEARBY = "📍 Yaqin joylar"
+MENU_SEND_LOCATION = "📍 Lokatsiyani yuborish"
+MENU_BACK = "⬅️ Menyuga qaytish"
+MENU_CHANGE_LANG = "🌐 Tilni almashtirish / Language"
 LOCATION_PROMPT = "Yaqin joylarni topish uchun pastdagi tugmadan lokatsiyangizni yuboring."
 SUPPORTED_LANGS = ("uz", "ru", "en")
 
@@ -234,6 +235,7 @@ def culture_image_input(item: CultureItem):
 
 @sync_to_async
 def fetch_places(kind: str, limit: int = 6):
+    close_old_connections()
     qs = Destination.objects.filter(
         is_active=True,
         region__is_active=True,
@@ -273,6 +275,7 @@ def fetch_places(kind: str, limit: int = 6):
 
 @sync_to_async
 def fetch_random_place():
+    close_old_connections()
     ids = list(
         Destination.objects.filter(
             is_active=True,
@@ -287,6 +290,7 @@ def fetch_random_place():
 
 @sync_to_async
 def fetch_places_with_coords():
+    close_old_connections()
     return list(
         Destination.objects.filter(
             is_active=True,
@@ -299,6 +303,7 @@ def fetch_places_with_coords():
 
 @sync_to_async
 def fetch_culture_items(limit: int = 6):
+    close_old_connections()
     return list(
         CultureItem.objects.filter(is_active=True).order_by("-is_featured", "sort_order", "title")[:limit]
     )
